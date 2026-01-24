@@ -37,7 +37,8 @@ export const TableView = () => {
                         Back to Upload
                     </button>
                     <button
-                        // TODO: Hook up Analysis Trigger here
+                        // Trigger Analysis
+                        onClick={() => setActiveTab('analysis')}
                         className="px-4 py-2 text-sm font-medium bg-blue-600 hover:bg-blue-700 text-white rounded-md shadow-lg shadow-blue-500/20 transition-all"
                     >
                         Analyze Data

@@ -11,7 +11,7 @@ export interface WoznyState {
     fileName: string | null;
 
     // App State
-    activeTab: 'upload' | 'table' | 'report' | 'workshop' | 'diff';
+    activeTab: 'upload' | 'table' | 'analysis' | 'report' | 'workshop' | 'diff';
     isAnalyzing: boolean;
 
     // Actions
