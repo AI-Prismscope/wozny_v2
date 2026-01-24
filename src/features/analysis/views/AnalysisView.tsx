@@ -16,6 +16,7 @@ export const AnalysisView = () => {
 
     useEffect(() => {
         let isMounted = true;
+        let timerId: NodeJS.Timeout;
 
         const startJob = async () => {
             try {
@@ -47,9 +48,18 @@ export const AnalysisView = () => {
             }
         };
 
-        startJob();
+        // React 18 Strict Mode Fix:
+        // Mount 1 -> Schedule -> Unmount 1 -> Clear -> (Job never starts)
+        // Mount 2 -> Schedule -> (Job starts)
+        // This ensures the job only runs on the persistent mount.
+        timerId = setTimeout(() => {
+            startJob();
+        }, 500);
 
-        return () => { isMounted = false; };
+        return () => {
+            isMounted = false;
+            clearTimeout(timerId);
+        };
     }, [rows, columns, setActiveTab]);
 
     return (

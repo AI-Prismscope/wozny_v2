@@ -24,6 +24,20 @@ export const runAnalysis = async (
 
     const results = [];
 
+    // --- HEALTH CHECK ---
+    try {
+        console.log("[Analysis] Running Engine Health Check...");
+        const healthCheck = await engine.chat.completions.create({
+            messages: [{ role: "user", content: "Say 'OK'" }],
+            max_tokens: 5,
+        });
+        console.log("[Analysis] Health Check Passed:", healthCheck.choices[0].message.content);
+    } catch (e) {
+        console.error("[Analysis] Health Check FAILED. Engine is unresponsive.", e);
+        throw new Error("AI Engine failed health check.");
+    }
+    // --------------------
+
     for (let i = 0; i < batches; i++) {
         const start = i * BATCH_SIZE;
         const end = Math.min(start + BATCH_SIZE, totalRows);
@@ -33,17 +47,19 @@ export const runAnalysis = async (
         const csvString = chunk.map(row => columns.map(c => row[c]).join(',')).join('\n');
 
         try {
+            console.log(`[Analysis] Processing Batch ${i + 1}/${batches}`);
             // We use the standard chat interface but with our structured prompts
             // This triggers the 'handleAnalysisBatch' logic implicitly via the engine, or we just rely on standard completion
             // Standard completion is safer with the library.
 
             const reply = await engine.chat.completions.create({
                 messages: [
-                    { role: "system", content: "You are a data analyst. Output valid JSON issues list." }, // Simplified for brevity here, actual prompt in use
+                    { role: "system", content: "You are a data analyst. Output valid JSON issues list per row." },
                     { role: "user", content: `Analyze this CSV:\n<data>${csvString}</data>` }
                 ],
                 temperature: 0.1
             });
+            console.log(`[Analysis] Batch ${i + 1} completed`);
 
             results.push(reply.choices[0].message.content);
             onProgress(((i + 1) / batches) * 100);

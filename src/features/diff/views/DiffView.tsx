@@ -97,7 +97,7 @@ export const DiffView = () => {
                     <div className="p-2 bg-neutral-100 dark:bg-neutral-900/50 text-center text-xs font-mono text-neutral-500 uppercase tracking-widest border-b border-neutral-200 dark:border-neutral-800">
                         Original Source
                     </div>
-                    <div className="flex-1 overflow-hidden pointer-events-none opacity-60 grayscale">
+                    <div className="flex-1 overflow-hidden opacity-75">
                         <DataGrid ref={sourceRef} data={rawRows} columns={columns} />
                     </div>
                 </div>
