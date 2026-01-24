@@ -12,8 +12,9 @@ interface DataGridProps {
     onCellClick?: (rowIndex: number, columnId: string, value: string) => void;
 }
 
-export const DataGrid = ({ data, columns, className, onCellClick }: DataGridProps) => {
-    const parentRef = useRef<HTMLDivElement>(null);
+export const DataGrid = React.forwardRef<HTMLDivElement, DataGridProps>(({ data, columns, className, onCellClick }, ref) => {
+    const defaultRef = useRef<HTMLDivElement>(null);
+    const parentRef = (ref as React.RefObject<HTMLDivElement>) || defaultRef;
 
     const rowVirtualizer = useVirtualizer({
         count: data.length,
@@ -88,4 +89,5 @@ export const DataGrid = ({ data, columns, className, onCellClick }: DataGridProp
             </div>
         </div>
     );
-};
+});
+DataGrid.displayName = 'DataGrid';

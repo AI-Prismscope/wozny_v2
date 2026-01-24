@@ -17,7 +17,7 @@ export const Navbar = () => {
         { id: 'analysis', label: 'Analysis', icon: FileText, hidden: true }, // Logic: Analysis is a process, usually transient. But user asked for "Report tab". Let's map Analysis View to 'Report' tab only when done? Or just keep it as a step. User asked for "Table tab. Report tab. workshop tab." AnalysisView is the loading screen.
         { id: 'report', label: 'Report', icon: FileText, hidden: false },
         { id: 'workshop', label: 'Workshop', icon: Wrench, hidden: false },
-        { id: 'diff', label: 'Export', icon: Download, hidden: false },
+        { id: 'diff', label: 'Review & Export', icon: Download, hidden: false },
     ] as const;
 
     return (

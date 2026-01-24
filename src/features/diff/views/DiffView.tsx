@@ -28,6 +28,42 @@ export const DiffView = () => {
         );
     }
 
+    const sourceRef = React.useRef<HTMLDivElement>(null);
+    const cleanRef = React.useRef<HTMLDivElement>(null);
+    const isScrolling = React.useRef(false);
+
+    // Synchronize Scroll
+    React.useEffect(() => {
+        const sourceCtx = sourceRef.current;
+        const cleanCtx = cleanRef.current;
+
+        if (!sourceCtx || !cleanCtx) return;
+
+        const handleScroll = (e: Event) => {
+            if (isScrolling.current) return;
+            isScrolling.current = true;
+
+            const target = e.target as HTMLDivElement;
+            const other = target === sourceCtx ? cleanCtx : sourceCtx;
+
+            other.scrollTop = target.scrollTop;
+            other.scrollLeft = target.scrollLeft;
+
+            // Reset lock after frame
+            requestAnimationFrame(() => {
+                isScrolling.current = false;
+            });
+        };
+
+        sourceCtx.addEventListener('scroll', handleScroll);
+        cleanCtx.addEventListener('scroll', handleScroll);
+
+        return () => {
+            sourceCtx.removeEventListener('scroll', handleScroll);
+            cleanCtx.removeEventListener('scroll', handleScroll);
+        };
+    }, [rows]); // Re-attach if data changes (e.g. upload new file)
+
     const handleExport = () => {
         const csv = Papa.unparse(rows);
         const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
@@ -54,30 +90,30 @@ export const DiffView = () => {
                 </button>
             </div>
 
-            {/* Split View */}
-            <div className="flex-1 flex overflow-hidden">
+            {/* Split View (Top/Bottom) */}
+            <div className="flex-1 flex flex-col overflow-hidden">
                 {/* Original */}
-                <div className="flex-1 flex flex-col border-r border-neutral-200 dark:border-neutral-800">
+                <div className="flex-1 flex flex-col border-b border-neutral-200 dark:border-neutral-800 min-h-0">
                     <div className="p-2 bg-neutral-100 dark:bg-neutral-900/50 text-center text-xs font-mono text-neutral-500 uppercase tracking-widest border-b border-neutral-200 dark:border-neutral-800">
                         Original Source
                     </div>
                     <div className="flex-1 overflow-hidden pointer-events-none opacity-60 grayscale">
-                        <DataGrid data={rawRows} columns={columns} />
+                        <DataGrid ref={sourceRef} data={rawRows} columns={columns} />
                     </div>
                 </div>
 
                 {/* Arrow Divider */}
-                <div className="w-12 bg-white dark:bg-neutral-950 flex items-center justify-center border-r border-neutral-200 dark:border-neutral-800">
-                    <ArrowRight className="text-neutral-400 dark:text-neutral-700" />
+                <div className="h-8 bg-white dark:bg-neutral-950 flex items-center justify-center border-b border-neutral-200 dark:border-neutral-800 z-10">
+                    <ArrowRight className="text-neutral-400 dark:text-neutral-700 rotate-90" />
                 </div>
 
                 {/* Cleaned */}
-                <div className="flex-1 flex flex-col">
+                <div className="flex-1 flex flex-col min-h-0">
                     <div className="p-2 bg-blue-50 dark:bg-blue-900/10 text-center text-xs font-mono text-blue-600 dark:text-blue-400 uppercase tracking-widest border-b border-neutral-200 dark:border-neutral-800">
                         Cleaned Output
                     </div>
                     <div className="flex-1 overflow-hidden">
-                        <DataGrid data={rows} columns={columns} />
+                        <DataGrid ref={cleanRef} data={rows} columns={columns} />
                     </div>
                 </div>
             </div>
