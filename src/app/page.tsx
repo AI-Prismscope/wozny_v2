@@ -2,6 +2,7 @@
 
 import { Shell } from '@/components/layout/Shell';
 import { UploadView } from '@/features/upload/views/UploadView';
+import { TableView } from '@/features/table/views/TableView';
 import { useWoznyStore } from '@/lib/store/useWoznyStore';
 
 export default function Home() {
@@ -10,7 +11,7 @@ export default function Home() {
   return (
     <Shell>
       {activeTab === 'upload' && <UploadView />}
-      {activeTab === 'table' && <div className="p-8 text-center text-neutral-500">Table View (Coming Soon)</div>}
+      {activeTab === 'table' && <TableView />}
     </Shell>
   );
 }
