@@ -73,3 +73,11 @@
 **Solution Implemented:** `Refined prompt to enforce "Max 1 issue per cell" and "Only flag REAL issues". Simplified examples to remove bias (e.g., removed dates from examples).`
 **Refactoring Action:** `Refined Prompt Engineering for Llama-3.2-3B context window.`
 ---
+**Timestamp:** `2026-01-24 15:19:00`
+**Category:** `DEPLOYMENT`
+**Status:** `SOLVED`
+**Error Message:** `JSON Parser Failed on Markdown Code Blocks`
+**Root Cause Analysis:** `The previous Regex match /\[[\s\S]*\]/ failed when the model wrapped the output in markdown code blocks or added newlines that confused the greedy match.`
+**Solution Implemented:** `Switched to substring extraction using indexOf('[') and lastIndexOf(']'). This reliably extracts the array payload regardless of surrounding markdown.`
+**Refactoring Action:** `Removed fragile Regex dependency in AnalysisView.`
+---
