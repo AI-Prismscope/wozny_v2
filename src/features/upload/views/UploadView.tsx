@@ -57,10 +57,10 @@ export const UploadView = () => {
         <div className="flex flex-col items-center justify-center h-full p-8 animate-in fade-in duration-500">
             <div className="max-w-xl w-full text-center space-y-8">
                 <div className="space-y-2">
-                    <h1 className="text-4xl font-bold tracking-tighter bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">
+                    <h1 className="text-4xl font-bold tracking-tighter bg-gradient-to-r from-blue-600 to-purple-600 dark:from-blue-400 dark:to-purple-400 bg-clip-text text-transparent">
                         Wozny v2
                     </h1>
-                    <p className="text-neutral-400">
+                    <p className="text-neutral-600 dark:text-neutral-400">
                         Secure, Private, AI-Powered Data Cleaning.
                     </p>
                 </div>
@@ -73,10 +73,10 @@ export const UploadView = () => {
                         "border-2 border-dashed rounded-3xl p-12 transition-all duration-300 cursor-pointer flex flex-col items-center gap-4 group",
                         isDragOver
                             ? "border-blue-500 bg-blue-500/10 scale-105 shadow-xl shadow-blue-500/20"
-                            : "border-neutral-700 bg-neutral-800/50 hover:border-neutral-500 hover:bg-neutral-800"
+                            : "border-neutral-200 dark:border-neutral-700 bg-neutral-50 dark:bg-neutral-800/50 hover:border-neutral-400 dark:hover:border-neutral-500 hover:bg-neutral-100 dark:hover:bg-neutral-800"
                     )}
                 >
-                    <div className="p-4 rounded-full bg-neutral-900 border border-neutral-700 group-hover:scale-110 transition-transform">
+                    <div className="p-4 rounded-full bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-700 group-hover:scale-110 transition-transform">
                         {isParsing ? (
                             <Loader2 className="w-8 h-8 text-blue-400 animate-spin" />
                         ) : (
@@ -84,7 +84,7 @@ export const UploadView = () => {
                         )}
                     </div>
                     <div className="space-y-1">
-                        <p className="text-lg font-medium text-neutral-200">
+                        <p className="text-lg font-medium text-neutral-700 dark:text-neutral-200">
                             {isParsing ? "Analyzing file structure..." : "Drop your CSV here"}
                         </p>
                         <p className="text-sm text-neutral-500">

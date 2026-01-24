@@ -13,6 +13,21 @@ export const WorkshopView = () => {
     const updateCell = useWoznyStore((state) => state.updateCell);
     const setActiveTab = useWoznyStore((state) => state.setActiveTab);
 
+    if (rows.length === 0) {
+        return (
+            <div className="flex flex-col items-center justify-center h-full text-neutral-500 dark:text-neutral-400">
+                <p className="text-lg font-medium">No data yet</p>
+                <p className="text-sm">Upload a CSV file to start the workshop.</p>
+                <button
+                    onClick={() => setActiveTab('upload')}
+                    className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
+                >
+                    Go to Upload
+                </button>
+            </div>
+        );
+    }
+
     const [filterType, setFilterType] = useState<'ALL' | 'MISSING' | 'FORMAT' | 'DUPLICATE'>('ALL');
 
     // Counts
