@@ -25,19 +25,52 @@ export const WorkshopView = () => {
         DUPLICATE: issues.filter(i => i.issueType === 'DUPLICATE').length,
     }), [rows.length, issues]);
 
-    // 2. Filter Rows
-    const filteredData = useMemo(() => {
-        if (filter === 'ALL') return { rows, filteredIndices: null };
-
+    // 2. Filter Rows & Pre-compute Highlights
+    const { filteredRows, issueMap } = useMemo(() => {
         // Find Row IDs that have this specific issue type
-        const relevantRowIds = new Set(
-            issues.filter(i => i.issueType === filter).map(i => i.rowId)
-        );
+        let relevantRowIds: Set<number> | null = null;
+        if (filter !== 'ALL') {
+            relevantRowIds = new Set(
+                issues.filter(i => i.issueType === filter).map(i => i.rowId)
+            );
+        }
 
         // Filter the rows
-        const relevantRows = rows.filter((_, idx) => relevantRowIds.has(idx));
+        // If ALL, we keep all. If Filtered, we keep only relevant ones.
+        const relevantRows = rows.filter((_, idx) => relevantRowIds ? relevantRowIds.has(idx) : true);
 
-        return { rows: relevantRows, filteredIndices: relevantRowIds };
+        // CREATE MAPPING: Filtered Index -> Global Index
+        // This is needed because 'filteredRows[0]' might be 'globalRows[5]'.
+        // We need to know which global row it is to look up issues.
+
+        // Actually, let's just build the `issueMap` keyed by the NEW INDEX (0..N of filtered list).
+        // This makes DataGrid dumb and happy.
+
+        const map: Record<number, Record<string, string>> = {};
+
+        // Iterate through the FILTERED rows to build the map for the Grid
+        // To do this efficienty, we need to know the original index as we iterate?
+        // Let's iterate the global rows and match.
+
+        let filteredIndex = 0;
+        rows.forEach((_, globalIndex) => {
+            if (relevantRowIds && !relevantRowIds.has(globalIndex)) return; // Skip if filtered out
+
+            // This global row IS in the filtered list at 'filteredIndex'.
+            // Find issues for this global row
+            const rowIssues = issues.filter(i => i.rowId === globalIndex);
+
+            if (rowIssues.length > 0) {
+                map[filteredIndex] = {};
+                rowIssues.forEach(issue => {
+                    map[filteredIndex][issue.column] = issue.issueType;
+                });
+            }
+
+            filteredIndex++;
+        });
+
+        return { filteredRows: relevantRows, issueMap: map };
     }, [rows, issues, filter]);
 
     // 3. Handle Cell Updates (Fixing in place)
@@ -133,16 +166,17 @@ export const WorkshopView = () => {
                         {filter === 'ALL' ? 'Master Dataset' : `${filter} Issues`}
                     </h2>
                     <div className="text-xs text-neutral-500">
-                        {filteredData.rows.length} Rows Visible
+                        {filteredRows.length} Rows Visible
                     </div>
                 </div>
 
                 <div className="flex-1 overflow-hidden p-6">
                     <DataGrid
-                        data={filteredData.rows}
+                        data={filteredRows}
                         columns={columns}
+                        issueMap={issueMap}
                         className="shadow-sm border border-neutral-200 dark:border-neutral-800"
-                    // onCellClick={handleCellUpdate} // TODO: Implement Reactive Editing
+                    // onCellClick={handleCellUpdate} 
                     />
                 </div>
             </div>
