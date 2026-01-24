@@ -7,22 +7,58 @@ import { RowData, AnalysisIssue } from './store/useWoznyStore';
 export const runDeterministicAnalysis = (rows: RowData[], columns: string[]): AnalysisIssue[] => {
     const issues: AnalysisIssue[] = [];
     const seenFingerprints = new Set<string>();
+    const seenPartialFingerprints = new Map<string, number>();
+
+    // Heuristic: Identify potential "Identity" columns for partial matching
+    // We look for First Name + Last Name + Address (or similar combo)
+    const identityCols = columns.filter(c => {
+        const lower = c.toLowerCase();
+        return lower.includes('name') || lower.includes('address') || lower.includes('email');
+    });
+
+    // Only run partial check if we have at least 2 identity columns to match on
+    const canRunPartialCheck = identityCols.length >= 2;
 
     rows.forEach((row, rowIndex) => {
-        // 1. DUPLICATE CHECK (Normalized Fingerprint)
-        const fingerprint = columns
+        // 1a. EXACT DUPLICATE CHECK
+        const exactFingerprint = columns
             .map(col => String(row[col] || '').trim().toLowerCase())
             .join('|');
 
-        if (seenFingerprints.has(fingerprint)) {
+        if (seenFingerprints.has(exactFingerprint)) {
             issues.push({
                 rowId: rowIndex,
-                column: columns[0], // Anchor to first column
+                column: columns[0],
                 issueType: "DUPLICATE",
-                suggestion: "Remove duplicate row"
+                suggestion: "Remove exact duplicate row"
             });
         }
-        seenFingerprints.add(fingerprint);
+        seenFingerprints.add(exactFingerprint);
+
+        // 1b. PARTIAL DUPLICATE CHECK (Heuristic)
+        if (canRunPartialCheck) {
+            const partialFingerprint = identityCols
+                .map(col => String(row[col] || '').trim().toLowerCase())
+                .join('|');
+
+            // If we've seen this PERSON before (Name+Address), but it wasn't caught by the Exact Check...
+            // It means some other column (like ID or Phone) is different.
+            if (seenPartialFingerprints.has(partialFingerprint)) {
+                // Check if it was already flagged as Exact Duplicate (don't double flag)
+                const isExact = issues.some(i => i.rowId === rowIndex && i.issueType === 'DUPLICATE');
+
+                if (!isExact) {
+                    issues.push({
+                        rowId: rowIndex,
+                        column: identityCols[0],
+                        issueType: "DUPLICATE", // We use key "DUPLICATE" but with specific text
+                        suggestion: "Potential Duplicate (Identity match)"
+                    });
+                }
+            } else {
+                seenPartialFingerprints.set(partialFingerprint, rowIndex);
+            }
+        }
 
         columns.forEach(col => {
             const value = row[col];
