@@ -3,12 +3,22 @@ import { immer } from 'zustand/middleware/immer';
 
 export type RowData = Record<string, string>;
 
+export interface AnalysisIssue {
+    rowId: number;
+    column: string;
+    issueType: "FORMAT" | "DUPLICATE" | "MISSING";
+    suggestion: string;
+}
+
 export interface WoznyState {
     // Data State
-    rawRows: RowData[];         // The original immutable copy
-    rows: RowData[];            // The working copy (edited)
-    columns: string[];          // Header names
+    rawRows: RowData[];
+    rows: RowData[];
+    columns: string[];
     fileName: string | null;
+
+    // Analysis State
+    issues: AnalysisIssue[]; // Flat list of all issues
 
     // App State
     activeTab: 'upload' | 'table' | 'analysis' | 'report' | 'workshop' | 'diff';
@@ -16,6 +26,7 @@ export interface WoznyState {
 
     // Actions
     setCsvData: (fileName: string, data: RowData[], columns: string[]) => void;
+    setAnalysisResults: (issues: AnalysisIssue[]) => void; // New action
     reset: () => void;
     setActiveTab: (tab: WoznyState['activeTab']) => void;
     updateCell: (rowIndex: number, columnId: string, value: string) => void;
@@ -27,6 +38,7 @@ export const useWoznyStore = create<WoznyState>()(
         rows: [],
         columns: [],
         fileName: null,
+        issues: [],
         activeTab: 'upload',
         isAnalyzing: false,
 
@@ -34,9 +46,14 @@ export const useWoznyStore = create<WoznyState>()(
             set((state) => {
                 state.fileName = fileName;
                 state.rawRows = data;
-                state.rows = data; // Initially same as raw
+                state.rows = data;
                 state.columns = columns;
-                state.activeTab = 'table'; // Auto-navigate to table
+                state.activeTab = 'table';
+            }),
+
+        setAnalysisResults: (issues) =>
+            set((state) => {
+                state.issues = issues;
             }),
 
         reset: () =>
@@ -44,6 +61,7 @@ export const useWoznyStore = create<WoznyState>()(
                 state.rawRows = [];
                 state.rows = [];
                 state.columns = [];
+                state.issues = [];
                 state.fileName = null;
                 state.activeTab = 'upload';
                 state.isAnalyzing = false;
@@ -58,6 +76,8 @@ export const useWoznyStore = create<WoznyState>()(
             set((state) => {
                 if (state.rows[rowIndex]) {
                     state.rows[rowIndex][columnId] = value;
+                    // Reactive Logic: If we fix a cell, we should technically remove the issue for that cell.
+                    state.issues = state.issues.filter(i => !(i.rowId === rowIndex && i.column === columnId));
                 }
             }),
     }))
