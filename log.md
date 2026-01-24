@@ -57,3 +57,11 @@
 **Solution Implemented:** `Added explicit if (!jsonStr) return; check before processing.`
 **Refactoring Action:** `Improved type safety in AnalysisView result parsing.`
 ---
+**Timestamp:** `2026-01-24 14:55:00`
+**Category:** `EVAL`
+**Status:** `SOLVED`
+**Error Message:** `Failed to parse batch result: JSON parse error`
+**Root Cause Analysis:** `The Llama-3.2-3B model output conversational text (e.g., "Here is the JSON:") before the actual JSON array, causing JSON.parse() to fail on the leading characters.`
+**Solution Implemented:** `Implemented a Regex extractor (/\[[\s\S]*\]/) to isolate the JSON array from the response string before parsing.`
+**Refactoring Action:** `Hardened JSON Parsing logic in AnalysisView to be resilient to non-JSON noise.`
+---
