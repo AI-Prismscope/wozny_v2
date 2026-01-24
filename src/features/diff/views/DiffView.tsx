@@ -5,6 +5,7 @@ import { useWoznyStore } from '@/lib/store/useWoznyStore';
 import { DataGrid } from '@/shared/DataGrid';
 import { Download, ArrowRight } from 'lucide-react';
 import Papa from 'papaparse';
+import { EmptyState } from '@/shared/EmptyState';
 
 export const DiffView = () => {
     const rawRows = useWoznyStore((state) => state.rawRows);
@@ -14,18 +15,7 @@ export const DiffView = () => {
     const setActiveTab = useWoznyStore((state) => state.setActiveTab);
 
     if (rows.length === 0) {
-        return (
-            <div className="flex flex-col items-center justify-center h-full text-neutral-500 dark:text-neutral-400">
-                <p className="text-lg font-medium">No data yet</p>
-                <p className="text-sm">Upload a CSV file to export results.</p>
-                <button
-                    onClick={() => setActiveTab('upload')}
-                    className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition-colors"
-                >
-                    Go to Upload
-                </button>
-            </div>
-        );
+        return <EmptyState description="Upload a CSV file to export results." />;
     }
 
     const sourceRef = React.useRef<HTMLDivElement>(null);
