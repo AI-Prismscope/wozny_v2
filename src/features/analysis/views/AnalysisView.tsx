@@ -36,8 +36,29 @@ export const AnalysisView = () => {
                     if (isMounted) setProgress(50 + (p * 0.5)); // 50-100%
                 });
 
-                // 3. Store Results (Mocking the storage logic for now, we'de parse the JSONs here)
+                // 3. Store Results
                 console.log("Analysis Complete", results);
+                const setAnalysisResults = useWoznyStore.getState().setAnalysisResults;
+                const issuesList: any[] = [];
+
+                results.forEach((jsonStr) => {
+                    if (!jsonStr) return;
+                    try {
+                        // Clean up markdown code blocks if present
+                        const cleanStr = jsonStr.replace(/```json/g, '').replace(/```/g, '').trim();
+                        const parsed = JSON.parse(cleanStr);
+                        if (Array.isArray(parsed)) {
+                            issuesList.push(...parsed);
+                        }
+                    } catch (err) {
+                        console.warn("Failed to parse batch result:", jsonStr, err);
+                    }
+                });
+
+                // Add unique keys if missing, or ensure structure
+                // Logic assumes runner returns valid AnalysisIssue structure, but rowId might be loose.
+                // We'll trust the runner + system prompt for now. 
+                setAnalysisResults(issuesList);
 
                 // 4. Navigate to Report
                 if (isMounted) setActiveTab('report');

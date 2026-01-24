@@ -9,19 +9,32 @@ export const ReportView = () => {
     const fileName = useWoznyStore((state) => state.fileName);
     const rows = useWoznyStore((state) => state.rows);
     const setActiveTab = useWoznyStore((state) => state.setActiveTab);
+    const issues = useWoznyStore((state) => state.issues);
 
-    if (rows.length === 0) {
-        return <EmptyState description="Upload a CSV file to generate a report." />;
-    }
+    // Calculate Stats
+    const stats = React.useMemo(() => {
+        const missing = issues.filter(i => i.issueType === 'MISSING').length;
+        const format = issues.filter(i => i.issueType === 'FORMAT').length;
+        const duplicate = issues.filter(i => i.issueType === 'DUPLICATE').length;
+        const total = missing + format + duplicate;
 
-    // MOCK STATS (To be replaced by real analysis data in Store)
-    const stats = {
-        healthScore: 'B+',
-        missingCount: 15,
-        formattingCount: 23,
-        duplicateCount: 30,
-        summary: "This dataset appears to be a **Sales Ledger** from Q3 2023. It contains customer contact details and transaction amounts. Primary issues involve inconsistent Date formats and missing email addresses."
-    };
+        // Simple Health Score
+        const cellCount = Math.max(rows.length * Object.keys(rows[0] || {}).length, 1);
+        const ratio = 1 - (total / cellCount);
+        let grad = 'F';
+        if (ratio > 0.9) grad = 'A';
+        else if (ratio > 0.8) grad = 'B';
+        else if (ratio > 0.7) grad = 'C';
+        else if (ratio > 0.6) grad = 'D';
+
+        return {
+            healthScore: grad,
+            missingCount: missing,
+            formattingCount: format,
+            duplicateCount: duplicate,
+            summary: `Analysis complete. Found ${total} issues across ${rows.length} rows. Primary concerns: ${missing > format ? "Missing Data" : "Formatting Inconsistencies"}.`
+        };
+    }, [issues, rows]);
 
     return (
         <div className="p-8 max-w-5xl mx-auto h-full overflow-auto animate-in fade-in slide-in-from-bottom-4">
