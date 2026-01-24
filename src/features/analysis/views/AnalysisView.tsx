@@ -59,19 +59,19 @@ export const AnalysisView = () => {
                     <BrainCircuit className="w-8 h-8 text-blue-400 animate-pulse" />
                 </div>
 
-                <h2 className="text-2xl font-bold text-white">AI Analysis in Progress</h2>
+                <h2 className="text-2xl font-bold text-neutral-900 dark:text-white">AI Analysis in Progress</h2>
 
                 <div className="space-y-2">
-                    <div className="h-2 w-full bg-neutral-800 rounded-full overflow-hidden">
+                    <div className="h-2 w-full bg-neutral-200 dark:bg-neutral-800 rounded-full overflow-hidden">
                         <div
                             className="h-full bg-blue-500 transition-all duration-300 ease-out"
                             style={{ width: `${progress}%` }}
                         />
                     </div>
-                    <p className="text-sm text-neutral-400 font-mono">{statusText} ({Math.round(progress)}%)</p>
+                    <p className="text-sm text-neutral-600 dark:text-neutral-400 font-mono">{statusText} ({Math.round(progress)}%)</p>
                 </div>
 
-                <div className="p-4 bg-neutral-900/50 rounded-lg border border-neutral-800 text-xs text-neutral-500 text-left space-y-1">
+                <div className="p-4 bg-neutral-100 dark:bg-neutral-900/50 rounded-lg border border-neutral-200 dark:border-neutral-800 text-xs text-neutral-600 dark:text-neutral-500 text-left space-y-1">
                     <p>• Engine: Llama-3.2-3B (WebGPU)</p>
                     <p>• Strategy: Batched Inference</p>
                     <p>• Privacy: Local Processing Only</p>

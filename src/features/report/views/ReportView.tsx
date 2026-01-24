@@ -24,8 +24,8 @@ export const ReportView = () => {
             {/* Header */}
             <div className="flex items-center justify-between mb-8">
                 <div>
-                    <h1 className="text-3xl font-bold text-white">Executive Report</h1>
-                    <p className="text-neutral-400">Analysis for <span className="text-neutral-200 font-mono">{fileName}</span></p>
+                    <h1 className="text-3xl font-bold text-neutral-900 dark:text-white">Executive Report</h1>
+                    <p className="text-neutral-500 dark:text-neutral-400">Analysis for <span className="text-neutral-700 dark:text-neutral-200 font-mono">{fileName}</span></p>
                 </div>
                 <div className="flex items-center gap-4">
                     <div className="text-right">
@@ -40,36 +40,36 @@ export const ReportView = () => {
 
             {/* KPI Cards */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
-                <div className="bg-neutral-900 border border-neutral-800 p-6 rounded-xl">
-                    <div className="flex items-center gap-3 mb-2 text-yellow-500">
+                <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 p-6 rounded-xl shadow-sm dark:shadow-none">
+                    <div className="flex items-center gap-3 mb-2 text-yellow-600 dark:text-yellow-500">
                         <AlertTriangle className="w-5 h-5" />
                         <h3 className="font-semibold">Formatting Issues</h3>
                     </div>
-                    <p className="text-3xl font-bold text-white">{stats.formattingCount}</p>
+                    <p className="text-3xl font-bold text-neutral-900 dark:text-white">{stats.formattingCount}</p>
                     <p className="text-sm text-neutral-500">Inconsistent dates/phones</p>
                 </div>
-                <div className="bg-neutral-900 border border-neutral-800 p-6 rounded-xl">
-                    <div className="flex items-center gap-3 mb-2 text-red-400">
+                <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 p-6 rounded-xl shadow-sm dark:shadow-none">
+                    <div className="flex items-center gap-3 mb-2 text-red-500 dark:text-red-400">
                         <Ban className="w-5 h-5" />
                         <h3 className="font-semibold">Missing Values</h3>
                     </div>
-                    <p className="text-3xl font-bold text-white">{stats.missingCount}</p>
+                    <p className="text-3xl font-bold text-neutral-900 dark:text-white">{stats.missingCount}</p>
                     <p className="text-sm text-neutral-500">Empty cells detected</p>
                 </div>
-                <div className="bg-neutral-900 border border-neutral-800 p-6 rounded-xl">
-                    <div className="flex items-center gap-3 mb-2 text-blue-400">
+                <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 p-6 rounded-xl shadow-sm dark:shadow-none">
+                    <div className="flex items-center gap-3 mb-2 text-blue-500 dark:text-blue-400">
                         <FileText className="w-5 h-5" />
                         <h3 className="font-semibold">Duplicates</h3>
                     </div>
-                    <p className="text-3xl font-bold text-white">{stats.duplicateCount}</p>
+                    <p className="text-3xl font-bold text-neutral-900 dark:text-white">{stats.duplicateCount}</p>
                     <p className="text-sm text-neutral-500">Row collisions</p>
                 </div>
             </div>
 
             {/* Narrative Summary */}
-            <div className="bg-neutral-900/50 border border-neutral-800 p-8 rounded-xl mb-8">
-                <h3 className="text-lg font-semibold text-white mb-4">AI Narrative Analysis</h3>
-                <p className="text-neutral-300 leading-relaxed text-lg">
+            <div className="bg-white dark:bg-neutral-900/50 border border-neutral-200 dark:border-neutral-800 p-8 rounded-xl mb-8 shadow-sm dark:shadow-none">
+                <h3 className="text-lg font-semibold text-neutral-900 dark:text-white mb-4">AI Narrative Analysis</h3>
+                <p className="text-neutral-700 dark:text-neutral-300 leading-relaxed text-lg">
                     {stats.summary}
                 </p>
             </div>
@@ -78,7 +78,7 @@ export const ReportView = () => {
             <div className="flex justify-end gap-4">
                 <button
                     onClick={() => setActiveTab('table')}
-                    className="px-6 py-3 text-neutral-400 hover:text-white transition-colors"
+                    className="px-6 py-3 text-neutral-500 dark:text-neutral-400 hover:text-neutral-900 dark:hover:text-white transition-colors"
                 >
                     View Raw Data
                 </button>

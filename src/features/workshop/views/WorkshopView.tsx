@@ -46,8 +46,8 @@ export const WorkshopView = () => {
     return (
         <div className="flex h-full animate-in fade-in">
             {/* Sidebar */}
-            <div className="w-64 bg-neutral-900 border-r border-neutral-800 flex flex-col">
-                <div className="p-6 border-b border-neutral-800">
+            <div className="w-64 bg-neutral-50 dark:bg-neutral-900 border-r border-neutral-200 dark:border-neutral-800 flex flex-col">
+                <div className="p-6 border-b border-neutral-200 dark:border-neutral-800">
                     <h2 className="text-xl font-bold bg-gradient-to-r from-blue-400 to-purple-400 bg-clip-text text-transparent">The Workshop</h2>
                     <p className="text-xs text-neutral-500 mt-1">Remediation Console</p>
                 </div>
@@ -65,7 +65,7 @@ export const WorkshopView = () => {
                         label="Missing Values"
                         count={counts.MISSING}
                         onClick={() => setFilterType('MISSING')}
-                        color="text-red-400"
+                        color="text-red-500 dark:text-red-400"
                         icon={<Ban className="w-4 h-4" />}
                     />
                     <FilterButton
@@ -73,7 +73,7 @@ export const WorkshopView = () => {
                         label="Formatting"
                         count={counts.FORMAT}
                         onClick={() => setFilterType('FORMAT')}
-                        color="text-yellow-500"
+                        color="text-yellow-600 dark:text-yellow-500"
                         icon={<AlertTriangle className="w-4 h-4" />}
                     />
                     <FilterButton
@@ -81,12 +81,12 @@ export const WorkshopView = () => {
                         label="Duplicates"
                         count={counts.DUPLICATE}
                         onClick={() => setFilterType('DUPLICATE')}
-                        color="text-blue-400"
+                        color="text-blue-500 dark:text-blue-400"
                         icon={<FileText className="w-4 h-4" />}
                     />
                 </div>
 
-                <div className="p-4 border-t border-neutral-800">
+                <div className="p-4 border-t border-neutral-200 dark:border-neutral-800">
                     <button
                         onClick={() => setActiveTab('diff')} // Go to Step 6
                         className="w-full py-2 bg-green-600 hover:bg-green-700 text-white rounded-md font-medium transition-colors flex items-center justify-center gap-2"
@@ -98,7 +98,7 @@ export const WorkshopView = () => {
             </div>
 
             {/* Main Grid */}
-            <div className="flex-1 p-0 overflow-hidden bg-neutral-900/50">
+            <div className="flex-1 p-0 overflow-hidden bg-neutral-100 dark:bg-neutral-900/50">
                 <DataGrid
                     data={filteredRows}
                     columns={columns}
@@ -124,14 +124,16 @@ function FilterButton({ active, label, count, onClick, icon, color }: any) {
             onClick={onClick}
             className={clsx(
                 "w-full flex items-center justify-between px-3 py-2 rounded-md transition-all text-sm",
-                active ? "bg-neutral-800 text-white shadow-sm" : "text-neutral-400 hover:bg-neutral-800/50 hover:text-neutral-200"
+                active
+                    ? "bg-white dark:bg-neutral-800 text-neutral-900 dark:text-white shadow-sm border border-neutral-200 dark:border-neutral-700"
+                    : "text-neutral-500 dark:text-neutral-400 hover:bg-neutral-200 dark:hover:bg-neutral-800/50 hover:text-neutral-900 dark:hover:text-neutral-200"
             )}
         >
             <div className={clsx("flex items-center gap-2", color)}>
                 {icon}
                 <span className={active ? "font-medium" : ""}>{label}</span>
             </div>
-            <span className="bg-neutral-900 px-2 py-0.5 rounded text-xs border border-neutral-800">{count}</span>
+            <span className="bg-neutral-100 dark:bg-neutral-900 px-2 py-0.5 rounded text-xs border border-neutral-200 dark:border-neutral-800">{count}</span>
         </button>
     )
 }
