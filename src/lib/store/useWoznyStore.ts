@@ -1,5 +1,6 @@
 import { create } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
+import { runDeterministicAnalysis } from '../data-quality';
 
 export type RowData = Record<string, string>;
 
@@ -42,12 +43,19 @@ export const useWoznyStore = create<WoznyState>()(
         activeTab: 'upload',
         isAnalyzing: false,
 
+
+
         setCsvData: (fileName, data, columns) =>
             set((state) => {
                 state.fileName = fileName;
                 state.rawRows = data;
                 state.rows = data;
                 state.columns = columns;
+
+                // Run Immediate Deterministic Analysis
+                const autoIssues = runDeterministicAnalysis(data, columns);
+                state.issues = autoIssues;
+
                 state.activeTab = 'table';
             }),
 
