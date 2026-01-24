@@ -2,14 +2,19 @@
 
 import React from 'react';
 import { useWoznyStore } from '@/lib/store/useWoznyStore';
-import { CheckCircle2, AlertTriangle, FileText, Ban } from 'lucide-react';
-import { EmptyState } from '@/shared/EmptyState';
+import { CheckCircle2, AlertTriangle, FileText, Ban, Sparkles, Loader2 } from 'lucide-react';
+import { getEngine } from '@/lib/ai/client';
+import { generateInsight } from '@/lib/ai/analysis-runner';
+import { InitProgressReport } from '@mlc-ai/web-llm';
 
 export const ReportView = () => {
     const fileName = useWoznyStore((state) => state.fileName);
     const rows = useWoznyStore((state) => state.rows);
     const setActiveTab = useWoznyStore((state) => state.setActiveTab);
     const issues = useWoznyStore((state) => state.issues);
+
+    const [insight, setInsight] = React.useState<string | null>(null);
+    const [isThinking, setIsThinking] = React.useState(false);
 
     // Calculate Stats
     const stats = React.useMemo(() => {
@@ -31,7 +36,7 @@ export const ReportView = () => {
         else if (ratio > 0.7) grad = 'C';
         else if (ratio > 0.6) grad = 'D';
 
-        // Dynamic Narrative
+        // Default Narrative (Deterministic)
         let narrative = `Analysis complete. Found ${total} issues across ${rows.length} rows. `;
         if (total === 0) {
             narrative += "The dataset appears clean.";
@@ -50,6 +55,21 @@ export const ReportView = () => {
             summary: narrative
         };
     }, [issues, rows]);
+
+    const handleGenerateInsight = async () => {
+        setIsThinking(true);
+        try {
+            const engine = await getEngine((p: InitProgressReport) => {
+                // Optional: show engine load progress
+            });
+            const text = await generateInsight(engine, issues, rows.length, () => { });
+            setInsight(text);
+        } catch (e) {
+            setInsight("Error generating insight. Please try again.");
+        } finally {
+            setIsThinking(false);
+        }
+    };
 
     return (
         <div className="p-8 max-w-5xl mx-auto h-full overflow-auto animate-in fade-in slide-in-from-bottom-4">
@@ -100,11 +120,32 @@ export const ReportView = () => {
             </div>
 
             {/* Narrative Summary */}
-            <div className="bg-white dark:bg-neutral-900/50 border border-neutral-200 dark:border-neutral-800 p-8 rounded-xl mb-8 shadow-sm dark:shadow-none">
-                <h3 className="text-lg font-semibold text-neutral-900 dark:text-white mb-4">AI Narrative Analysis</h3>
-                <p className="text-neutral-700 dark:text-neutral-300 leading-relaxed text-lg">
-                    {stats.summary}
-                </p>
+            <div className="bg-white dark:bg-neutral-900/50 border border-neutral-200 dark:border-neutral-800 p-8 rounded-xl mb-8 shadow-sm dark:shadow-none relative overflow-hidden">
+                <div className="flex justify-between items-start mb-4">
+                    <h3 className="text-lg font-semibold text-neutral-900 dark:text-white flex items-center gap-2">
+                        <Sparkles className="w-5 h-5 text-purple-500" />
+                        AI Executive Summary
+                    </h3>
+                    {!insight && !isThinking && (
+                        <button
+                            onClick={handleGenerateInsight}
+                            className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg text-sm font-medium transition-colors"
+                        >
+                            Generate Insight
+                        </button>
+                    )}
+                </div>
+
+                {isThinking ? (
+                    <div className="flex items-center gap-3 text-neutral-500 py-4">
+                        <Loader2 className="w-5 h-5 animate-spin" />
+                        <span className="text-sm font-mono animate-pulse">Consulting AI model...</span>
+                    </div>
+                ) : (
+                    <p className="text-neutral-700 dark:text-neutral-300 leading-relaxed text-lg">
+                        {insight || stats.summary}
+                    </p>
+                )}
             </div>
 
             {/* Action Bar */}
