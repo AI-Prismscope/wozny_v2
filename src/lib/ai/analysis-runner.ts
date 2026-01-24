@@ -57,36 +57,43 @@ export const runAnalysis = async (
                     {
                         role: "system",
                         content: `You are a data cleaner. Analyze the CSV rows provided by the user.
-Identify issues:
-1. MISSING: Empty cells or values like "N/A", "null", "Missing".
-2. FORMAT: Inconsistent dates, phone numbers without separators like "5550109999", or mixing all-caps like "JOHN".
-3. DUPLICATE: Rows that look identical.
 
-Output strictly a JSON array of objects. Do not output markdown.
+Rules:
+1. Only flag REAL issues. Do not hallucinate.
+2. If a cell is valid, do not output anything for it.
+3. Max 1 issue per cell.
+
+Identify issues:
+- MISSING: Empty string, "null", "N/A".
+- FORMAT:
+  - Phone numbers MUST have separators (e.g. "555-010-1234"). Flag "5550101234" or "555.010.1234".
+  - Names should be Title Case. Flag ALL CAPS ("JOHN") or lowercase ("john").
+- DUPLICATE: Exact row matches.
+
+Output strictly a JSON array of objects.
 Schema:
-[
-  { "rowId": number, "column": string, "issueType": "MISSING" | "FORMAT" | "DUPLICATE", "suggestion": string }
-]
+[ { "rowId": number, "column": string, "issueType": "MISSING" | "FORMAT" | "DUPLICATE", "suggestion": string } ]
 
 Example Input:
-First Name,Phone
+Name,Phone
 John,555-010-1234
 ,5550101234
-JOHN,555.010.5678
+JOHN,555-010-5678
 
 Example Output:
 [
-  { "rowId": 1, "column": "First Name", "issueType": "MISSING", "suggestion": "Enter First Name" },
-  { "rowId": 1, "column": "Phone", "issueType": "FORMAT", "suggestion": "Format as 555-010-1234" },
-  { "rowId": 2, "column": "First Name", "issueType": "FORMAT", "suggestion": "Convert to Title Case" }
+  { "rowId": 1, "column": "Name", "issueType": "MISSING", "suggestion": "Enter Name" },
+  { "rowId": 1, "column": "Phone", "issueType": "FORMAT", "suggestion": "Format as 555-xxx-xxxx" },
+  { "rowId": 2, "column": "Name", "issueType": "FORMAT", "suggestion": "Title Case" }
 ]
 
-IMPORTANT: The "rowId" must be the index of the row in the provided chunk, starting at ${start}.`
+IMPORTANT: "rowId" is the 0-based index relative to the provided chunk (Row 0 is the first data row shown below).`
                     },
-                    { role: "user", content: `Analyze these rows (starting at index ${start}):\n${csvString}` }
+                    { role: "user", content: `Analyze these rows (starting at rowId ${start}):\n${csvString}` }
                 ],
                 temperature: 0.1,
-                max_tokens: 2048 // Ensure enough space for the array
+                top_p: 0.1,
+                max_tokens: 1024
             });
             console.log(`[Analysis] Batch ${i + 1} completed`);
 

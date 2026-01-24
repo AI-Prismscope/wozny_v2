@@ -13,10 +13,14 @@ export const ReportView = () => {
 
     // Calculate Stats
     const stats = React.useMemo(() => {
-        const missing = issues.filter(i => i.issueType === 'MISSING').length;
-        const format = issues.filter(i => i.issueType === 'FORMAT').length;
-        const duplicate = issues.filter(i => i.issueType === 'DUPLICATE').length;
-        const total = missing + format + duplicate;
+        const missing = issues.filter(i => i.issueType === 'MISSING');
+        const format = issues.filter(i => i.issueType === 'FORMAT');
+        const duplicate = issues.filter(i => i.issueType === 'DUPLICATE');
+        const total = issues.length;
+
+        // Analyze specific columns
+        const formatColumns = [...new Set(format.map(i => i.column))].slice(0, 3).join(", ");
+        const missingColumns = [...new Set(missing.map(i => i.column))].slice(0, 3).join(", ");
 
         // Simple Health Score
         const cellCount = Math.max(rows.length * Object.keys(rows[0] || {}).length, 1);
@@ -27,12 +31,23 @@ export const ReportView = () => {
         else if (ratio > 0.7) grad = 'C';
         else if (ratio > 0.6) grad = 'D';
 
+        // Dynamic Narrative
+        let narrative = `Analysis complete. Found ${total} issues across ${rows.length} rows. `;
+        if (total === 0) {
+            narrative += "The dataset appears clean.";
+        } else {
+            if (missing.length > 0) narrative += `Data is missing primarily in: [${missingColumns}]. `;
+            if (format.length > 0) narrative += `Formatting inconsistencies detected in: [${formatColumns}].`;
+        }
+
         return {
             healthScore: grad,
-            missingCount: missing,
-            formattingCount: format,
-            duplicateCount: duplicate,
-            summary: `Analysis complete. Found ${total} issues across ${rows.length} rows. Primary concerns: ${missing > format ? "Missing Data" : "Formatting Inconsistencies"}.`
+            missingCount: missing.length,
+            formattingCount: format.length,
+            duplicateCount: duplicate.length,
+            formatLabel: formatColumns ? `Issues in: ${formatColumns}` : "No formatting issues",
+            missingLabel: missingColumns ? `Missing in: ${missingColumns}` : "No missing values",
+            summary: narrative
         };
     }, [issues, rows]);
 
@@ -64,7 +79,7 @@ export const ReportView = () => {
                         <h3 className="font-semibold">Formatting Issues</h3>
                     </div>
                     <p className="text-3xl font-bold text-neutral-900 dark:text-white">{stats.formattingCount}</p>
-                    <p className="text-sm text-neutral-500">Inconsistent dates/phones</p>
+                    <p className="text-sm text-neutral-500 truncate">{stats.formatLabel}</p>
                 </div>
                 <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 p-6 rounded-xl shadow-sm dark:shadow-none">
                     <div className="flex items-center gap-3 mb-2 text-red-500 dark:text-red-400">
@@ -72,7 +87,7 @@ export const ReportView = () => {
                         <h3 className="font-semibold">Missing Values</h3>
                     </div>
                     <p className="text-3xl font-bold text-neutral-900 dark:text-white">{stats.missingCount}</p>
-                    <p className="text-sm text-neutral-500">Empty cells detected</p>
+                    <p className="text-sm text-neutral-500 truncate">{stats.missingLabel}</p>
                 </div>
                 <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 p-6 rounded-xl shadow-sm dark:shadow-none">
                     <div className="flex items-center gap-3 mb-2 text-blue-500 dark:text-blue-400">
