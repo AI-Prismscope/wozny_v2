@@ -29,21 +29,23 @@ export const runDeterministicAnalysis = (rows: RowData[], columns: string[]): An
             const strVal = String(value || '').trim();
 
             // 2. MISSING CHECK (Void Pattern)
-            if (!value || strVal === '' || ['null', 'n/a', 'undefined', 'missing', 'tbd'].includes(strVal.toLowerCase())) {
+            // Explicitly handle the '[MISSING]' tag injected by the parser
+            if (!value || strVal === '' || strVal === '[MISSING]' || ['null', 'n/a', 'undefined', 'missing', 'tbd'].includes(strVal.toLowerCase())) {
                 issues.push({
                     rowId: rowIndex,
                     column: col,
                     issueType: "MISSING",
-                    suggestion: `Provide value for ${col}`
+                    suggestion: `Provide value for ${col}` // Generic, but accurate
                 });
-                return; // Skip formatting check if missing
+                return; // STOP. Do not check formatting on a missing cell.
             }
 
-            // 3. FORMAT CHECK (Casing Extremes)
+            // 3. FORMAT CHECK (Casing & Consistency)
             // Only applies to strings longer than 3 chars to avoid "ID" or "USA" being flagged.
             if (strVal.length > 3 && isNaN(Number(strVal))) {
+
+                // A) Email Format
                 if (col.toLowerCase().includes('email')) {
-                    // Simple Email Regex
                     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(strVal)) {
                         issues.push({
                             rowId: rowIndex,
@@ -53,12 +55,28 @@ export const runDeterministicAnalysis = (rows: RowData[], columns: string[]): An
                         });
                     }
                 }
+
+                // B) Street Address Consistency (St vs Street)
+                // Just flagging abbreviations for now as "Potential Abbreviation"
+                if (col.toLowerCase().includes('address')) {
+                    if (/\b(St|Ave|Rd|Blvd)\b\.?$/i.test(strVal)) {
+                        issues.push({
+                            rowId: rowIndex,
+                            column: col,
+                            issueType: "FORMAT",
+                            suggestion: "Expand abbreviation (e.g. 'Street')"
+                        });
+                    }
+                }
+
+                // C) Casing Extremes (ALL CAPS or all lowercase)
+                // We skip this check if it looks like a state code (2 chars) but we already check length > 3
                 else if (strVal === strVal.toUpperCase()) {
                     issues.push({
                         rowId: rowIndex,
                         column: col,
                         issueType: "FORMAT",
-                        suggestion: "Convert to Title Case (All Caps detected)"
+                        suggestion: "Convert to Title Case"
                     });
                 }
                 else if (strVal === strVal.toLowerCase()) {
@@ -66,7 +84,7 @@ export const runDeterministicAnalysis = (rows: RowData[], columns: string[]): An
                         rowId: rowIndex,
                         column: col,
                         issueType: "FORMAT",
-                        suggestion: "Convert to Title Case (All lowercase detected)"
+                        suggestion: "Convert to Title Case"
                     });
                 }
             }
