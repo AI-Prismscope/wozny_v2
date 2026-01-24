@@ -44,11 +44,18 @@ export const AnalysisView = () => {
                 results.forEach((jsonStr) => {
                     if (!jsonStr) return;
                     try {
-                        // Clean up markdown code blocks if present
-                        const cleanStr = jsonStr.replace(/```json/g, '').replace(/```/g, '').trim();
-                        const parsed = JSON.parse(cleanStr);
-                        if (Array.isArray(parsed)) {
-                            issuesList.push(...parsed);
+                        // Robust JSON Extraction: Find the array [ ... ] pattern
+                        // This handles conversational text ("Here is the data:") and markdown blocks
+                        const jsonMatch = jsonStr.match(/\[[\s\S]*\]/);
+
+                        if (jsonMatch) {
+                            const cleanJson = jsonMatch[0];
+                            const parsed = JSON.parse(cleanJson);
+                            if (Array.isArray(parsed)) {
+                                issuesList.push(...parsed);
+                            }
+                        } else {
+                            console.warn("No JSON array found in response:", jsonStr);
                         }
                     } catch (err) {
                         console.warn("Failed to parse batch result:", jsonStr, err);

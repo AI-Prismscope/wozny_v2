@@ -54,10 +54,39 @@ export const runAnalysis = async (
 
             const reply = await engine.chat.completions.create({
                 messages: [
-                    { role: "system", content: "You are a data analyst. Output valid JSON issues list per row." },
-                    { role: "user", content: `Analyze this CSV:\n<data>${csvString}</data>` }
+                    {
+                        role: "system",
+                        content: `You are a data cleaner. Analyze the CSV rows provided by the user.
+Identify issues:
+1. MISSING: Empty cells or values like "N/A", "null", "Missing".
+2. FORMAT: Inconsistent dates, phone numbers without separators like "5550109999", or mixing all-caps like "JOHN".
+3. DUPLICATE: Rows that look identical.
+
+Output strictly a JSON array of objects. Do not output markdown.
+Schema:
+[
+  { "rowId": number, "column": string, "issueType": "MISSING" | "FORMAT" | "DUPLICATE", "suggestion": string }
+]
+
+Example Input:
+First Name,Phone
+John,555-010-1234
+,5550101234
+JOHN,555.010.5678
+
+Example Output:
+[
+  { "rowId": 1, "column": "First Name", "issueType": "MISSING", "suggestion": "Enter First Name" },
+  { "rowId": 1, "column": "Phone", "issueType": "FORMAT", "suggestion": "Format as 555-010-1234" },
+  { "rowId": 2, "column": "First Name", "issueType": "FORMAT", "suggestion": "Convert to Title Case" }
+]
+
+IMPORTANT: The "rowId" must be the index of the row in the provided chunk, starting at ${start}.`
+                    },
+                    { role: "user", content: `Analyze these rows (starting at index ${start}):\n${csvString}` }
                 ],
-                temperature: 0.1
+                temperature: 0.1,
+                max_tokens: 2048 // Ensure enough space for the array
             });
             console.log(`[Analysis] Batch ${i + 1} completed`);
 
