@@ -23,6 +23,8 @@ export const DataGrid = React.forwardRef<HTMLDivElement, DataGridProps>(({ data,
         overscan: 10,
     });
 
+    const HEADER_HEIGHT = 45; // Match header height (approx)
+
     return (
         <div
             ref={parentRef}
@@ -30,16 +32,19 @@ export const DataGrid = React.forwardRef<HTMLDivElement, DataGridProps>(({ data,
         >
             <div
                 style={{
-                    height: `${rowVirtualizer.getTotalSize()}px`,
+                    height: `${rowVirtualizer.getTotalSize() + HEADER_HEIGHT}px`,
                     width: '100%',
                     position: 'relative',
                 }}
                 className="min-w-max" // Ensure full width scrolling
             >
                 {/* Header Row (Sticky) */}
-                <div className="sticky top-0 z-10 flex bg-neutral-100 dark:bg-neutral-900 border-b border-neutral-200 dark:border-neutral-700 font-medium text-neutral-500 dark:text-neutral-400 text-sm">
+                <div
+                    style={{ height: HEADER_HEIGHT }}
+                    className="sticky top-0 z-10 flex bg-neutral-100 dark:bg-neutral-900 border-b border-neutral-200 dark:border-neutral-700 font-medium text-neutral-500 dark:text-neutral-400 text-sm box-border"
+                >
                     {columns.map((col) => (
-                        <div key={col} className="p-3 w-48 shrink-0 truncate border-r border-neutral-200 dark:border-neutral-800 last:border-r-0">
+                        <div key={col} className="p-3 w-48 shrink-0 truncate border-r border-neutral-200 dark:border-neutral-800 last:border-r-0 flex items-center">
                             {col}
                         </div>
                     ))}
@@ -57,7 +62,7 @@ export const DataGrid = React.forwardRef<HTMLDivElement, DataGridProps>(({ data,
                                 left: 0,
                                 width: '100%',
                                 height: `40px`, // Fixed height matches estimate
-                                transform: `translateY(${virtualRow.start}px)`,
+                                transform: `translateY(${virtualRow.start + HEADER_HEIGHT}px)`,
                             }}
                             className={clsx(
                                 "flex items-center text-sm border-b border-neutral-100 dark:border-neutral-800 hover:bg-neutral-50 dark:hover:bg-neutral-800/50 transition-colors",
