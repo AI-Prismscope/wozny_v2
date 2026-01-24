@@ -44,18 +44,22 @@ export const AnalysisView = () => {
                 results.forEach((jsonStr) => {
                     if (!jsonStr) return;
                     try {
-                        // Robust JSON Extraction: Find the array [ ... ] pattern
-                        // This handles conversational text ("Here is the data:") and markdown blocks
-                        const jsonMatch = jsonStr.match(/\[[\s\S]*\]/);
+                        // Complex Extraction Logic:
+                        // 1. Try to find the first '[' that is followed closely by '{' (start of issue list)
+                        // 2. Or just the first '[' if the list is empty '[]'
+                        // The previous default match was too eager or missed the start index.
 
-                        if (jsonMatch) {
-                            const cleanJson = jsonMatch[0];
-                            const parsed = JSON.parse(cleanJson);
+                        const startIndex = jsonStr.indexOf('[');
+                        const endIndex = jsonStr.lastIndexOf(']');
+
+                        if (startIndex !== -1 && endIndex !== -1 && endIndex > startIndex) {
+                            const potentialJson = jsonStr.substring(startIndex, endIndex + 1);
+                            const parsed = JSON.parse(potentialJson);
                             if (Array.isArray(parsed)) {
                                 issuesList.push(...parsed);
                             }
                         } else {
-                            console.warn("No JSON array found in response:", jsonStr);
+                            console.warn("No valid JSON array found in response:", jsonStr);
                         }
                     } catch (err) {
                         console.warn("Failed to parse batch result:", jsonStr, err);

@@ -65,3 +65,11 @@
 **Solution Implemented:** `Implemented a Regex extractor (/\[[\s\S]*\]/) to isolate the JSON array from the response string before parsing.`
 **Refactoring Action:** `Hardened JSON Parsing logic in AnalysisView to be resilient to non-JSON noise.`
 ---
+**Timestamp:** `2026-01-24 15:05:00`
+**Category:** `EVAL`
+**Status:** `SOLVED`
+**Error Message:** `Analysis Hallucination (High Error Count / False Positives)`
+**Root Cause Analysis:** `The 3B model hallucinated multiple issues per cell because the prompt lacked negative constraints ("If valid, output nothing") and had confusing examples.`
+**Solution Implemented:** `Refined prompt to enforce "Max 1 issue per cell" and "Only flag REAL issues". Simplified examples to remove bias (e.g., removed dates from examples).`
+**Refactoring Action:** `Refined Prompt Engineering for Llama-3.2-3B context window.`
+---
