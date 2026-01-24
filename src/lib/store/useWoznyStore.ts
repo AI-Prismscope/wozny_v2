@@ -56,7 +56,7 @@ export const useWoznyStore = create<WoznyState>()(
                 const autoIssues = runDeterministicAnalysis(data, columns);
                 state.issues = autoIssues;
 
-                state.activeTab = 'table';
+                state.activeTab = 'report';
             }),
 
         setAnalysisResults: (issues) =>
