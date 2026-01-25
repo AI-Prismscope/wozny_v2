@@ -5,15 +5,19 @@ import { useVirtualizer } from '@tanstack/react-virtual';
 import { RowData } from '@/lib/store/useWoznyStore';
 import clsx from 'clsx';
 
+import { Trash2 } from 'lucide-react';
+
 interface DataGridProps {
     data: RowData[];
     columns: string[];
     className?: string;
     onCellClick?: (rowIndex: number, columnId: string, value: string) => void;
-    issueMap?: Record<number, Record<string, string>>; // New Prop
+    onDeleteRow?: (rowIndex: number) => void;
+    issueMap?: Record<number, Record<string, string>>;
+    rowStateMap?: Record<number, 'DUPLICATE' | 'MULTIPLE' | 'Loading'>;
 }
 
-export const DataGrid = React.forwardRef<HTMLDivElement, DataGridProps>(({ data, columns, className, onCellClick, issueMap }, ref) => {
+export const DataGrid = React.forwardRef<HTMLDivElement, DataGridProps>(({ data, columns, className, onCellClick, onDeleteRow, issueMap, rowStateMap }, ref) => {
     const defaultRef = useRef<HTMLDivElement>(null);
     const parentRef = (ref as React.RefObject<HTMLDivElement>) || defaultRef;
 
@@ -49,47 +53,18 @@ export const DataGrid = React.forwardRef<HTMLDivElement, DataGridProps>(({ data,
                             {col}
                         </div>
                     ))}
+                    {onDeleteRow && (
+                        <div className="p-3 w-12 shrink-0 border-l border-neutral-200 dark:border-neutral-800 flex items-center justify-center sticky right-0 bg-neutral-100 dark:bg-neutral-900">
+                            <span className="sr-only">Actions</span>
+                        </div>
+                    )}
                 </div>
 
                 {/* Virtualized Rows */}
                 {rowVirtualizer.getVirtualItems().map((virtualRow) => {
                     const row = data[virtualRow.index];
-                    // IMPORTANT: The issueMap is keyed by the *filtered* list index because that is what we are rendering?
-                    // NO. The issueMap we built in WorkshopView is keyed by the *original rowId*.
-                    // The 'data' passed here IS the filtered list.
-                    // But 'data' lacks the original index.
-                    // ISSUE: We passed 'issueMap' keyed by ORIGINAL index, but we don't know the original index here.
-
-                    // SOLUTION FOR V1: 
-                    // To avoid massive refactor of passing {row, index} objects, 
-                    // We will ASSUME for now that this 'issueMap' logic only works perfeclty when NOT filtered (Total view),
-                    // OR we need to lookup the issue by content/fingerprint? No that's slow.
-
-                    // WAIT. 
-                    // In WorkshopView, I passed `filteredRows` and `issueMap`.
-                    // But `filteredRows` is just an array of `rows`. It lost its ID.
-
-                    // HOT FIX:
-                    // Color highlighting relies on us knowing if THIS SPECIFIC row has an issue.
-                    // We can check if *any* value in this row matches the issue heuristics AGAIN? No, double logic.
-
-                    // BETTER FIX:
-                    // The DataGrid doesn't know "Who am I?".
-                    // Let's pass the issueType as a DIRECT PROPERTY of the cell value? No, strings only.
-
-                    // OK, let's step back.
-                    // The 'issueMap' from WorkshopView was keyed by `rowId`.
-                    // But `rowId` assumes we know the index in the master `rows` array.
-                    // When we map over `filteredRows`, `virtualRow.index` is 0, 1, 2... of the FILTERED list.
-
-                    // Correct approach:
-                    // The `issueMap` passed to DataGrid SHOULD be keyed by the INDICES OF THE PASSED DATA.
-                    // So `WorkshopView` needs to re-key the map to match the filtered subset indices.
-
-                    // I will implement the consumer side here assuming `issueMap[virtualRow.index]` is the source of truth.
-                    // Then I will fix the producer (WorkshopView) to remap the keys.
-
                     const rowIssues = issueMap ? issueMap[virtualRow.index] : {};
+                    const rowState = rowStateMap ? rowStateMap[virtualRow.index] : null;
 
                     return (
                         <div
@@ -103,8 +78,15 @@ export const DataGrid = React.forwardRef<HTMLDivElement, DataGridProps>(({ data,
                                 transform: `translateY(${virtualRow.start + HEADER_HEIGHT}px)`,
                             }}
                             className={clsx(
-                                "flex items-center text-sm border-b border-neutral-100 dark:border-neutral-800 hover:bg-neutral-50 dark:hover:bg-neutral-800/50 transition-colors",
-                                virtualRow.index % 2 === 0 ? "bg-white dark:bg-neutral-900/50" : "bg-neutral-50/50 dark:bg-neutral-900"
+                                "flex items-center text-sm border-b border-neutral-100 dark:border-neutral-800 transition-colors",
+                                // Row-Level Highlighting Priority
+                                rowState === 'DUPLICATE'
+                                    ? "bg-blue-50 dark:bg-blue-900/20 hover:bg-blue-100 dark:hover:bg-blue-900/30"
+                                    : rowState === 'MULTIPLE'
+                                        ? "bg-purple-50 dark:bg-purple-900/20 hover:bg-purple-100 dark:hover:bg-purple-900/30"
+                                        : virtualRow.index % 2 === 0
+                                            ? "bg-white dark:bg-neutral-900/50 hover:bg-neutral-50 dark:hover:bg-neutral-800/50"
+                                            : "bg-neutral-50/50 dark:bg-neutral-900 hover:bg-neutral-100 dark:hover:bg-neutral-800"
                             )}
                         >
                             {columns.map((col) => {
@@ -117,6 +99,8 @@ export const DataGrid = React.forwardRef<HTMLDivElement, DataGridProps>(({ data,
                                         key={`${virtualRow.index}-${col}`}
                                         className={clsx(
                                             "w-48 shrink-0 px-3 truncate border-r border-neutral-100 dark:border-neutral-800/50 last:border-r-0 h-full flex items-center transition-colors",
+                                            // Interactive Cursor
+                                            onCellClick && "cursor-[cell]",
                                             // Apply Highlight Class
                                             issueType === 'MISSING' && "bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-300 ring-inset ring-1 ring-red-200 dark:ring-red-800",
                                             issueType === 'FORMAT' && "bg-yellow-50 dark:bg-yellow-900/20 text-yellow-700 dark:text-yellow-300 ring-inset ring-1 ring-yellow-200 dark:ring-yellow-800",
@@ -134,6 +118,22 @@ export const DataGrid = React.forwardRef<HTMLDivElement, DataGridProps>(({ data,
                                     </div>
                                 );
                             })}
+
+                            {/* Action Column */}
+                            {onDeleteRow && (
+                                <div className="w-12 shrink-0 h-full flex items-center justify-center border-l border-neutral-100 dark:border-neutral-800 sticky right-0 bg-inherit transition-all">
+                                    <button
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            onDeleteRow(virtualRow.index);
+                                        }}
+                                        className="p-1.5 rounded-md hover:bg-red-100 text-neutral-400 hover:text-red-600 transition-colors"
+                                        title="Delete Row"
+                                    >
+                                        <Trash2 className="w-4 h-4" />
+                                    </button>
+                                </div>
+                            )}
                         </div>
                     );
                 })}

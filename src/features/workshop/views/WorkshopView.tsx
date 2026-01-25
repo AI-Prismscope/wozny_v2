@@ -3,8 +3,9 @@
 import React, { useState, useMemo } from 'react';
 import { useWoznyStore, RowData, AnalysisIssue } from '@/lib/store/useWoznyStore';
 import { DataGrid } from '@/shared/DataGrid';
-import { FileText, AlertTriangle, Ban, Layers, ArrowLeft } from 'lucide-react';
+import { FileText, AlertTriangle, Ban, Layers, ArrowLeft, Download } from 'lucide-react';
 import clsx from 'clsx';
+import { downloadCleanCsv } from '@/lib/export-utils';
 
 type FilterType = 'ALL' | 'MISSING' | 'FORMAT' | 'DUPLICATE';
 
@@ -14,8 +15,17 @@ export const WorkshopView = () => {
     const issues = useWoznyStore((state) => state.issues);
     const setActiveTab = useWoznyStore((state) => state.setActiveTab);
     const updateCell = useWoznyStore((state) => state.updateCell);
+    const removeRow = useWoznyStore((state) => state.removeRow);
+    const resolveDuplicates = useWoznyStore((state) => state.resolveDuplicates);
+    const autoFormat = useWoznyStore((state) => state.autoFormat);
 
     const [filter, setFilter] = useState<FilterType>('ALL');
+
+    const handleRemoveRow = (rowIndex: number) => {
+        const globalIndex = globalIndexMap[rowIndex];
+        if (globalIndex === undefined) return;
+        removeRow(globalIndex);
+    };
 
     // 1. Calculate Counts
     const counts = useMemo(() => ({
@@ -26,7 +36,7 @@ export const WorkshopView = () => {
     }), [rows.length, issues]);
 
     // 2. Filter Rows & Pre-compute Highlights
-    const { filteredRows, issueMap } = useMemo(() => {
+    const { filteredRows, issueMap, rowStateMap, globalIndexMap } = useMemo(() => {
         // Find Row IDs that have this specific issue type
         let relevantRowIds: Set<number> | null = null;
         if (filter !== 'ALL') {
@@ -40,21 +50,15 @@ export const WorkshopView = () => {
         const relevantRows = rows.filter((_, idx) => relevantRowIds ? relevantRowIds.has(idx) : true);
 
         // CREATE MAPPING: Filtered Index -> Global Index
-        // This is needed because 'filteredRows[0]' might be 'globalRows[5]'.
-        // We need to know which global row it is to look up issues.
-
-        // Actually, let's just build the `issueMap` keyed by the NEW INDEX (0..N of filtered list).
-        // This makes DataGrid dumb and happy.
-
         const map: Record<number, Record<string, string>> = {};
-
-        // Iterate through the FILTERED rows to build the map for the Grid
-        // To do this efficienty, we need to know the original index as we iterate?
-        // Let's iterate the global rows and match.
+        const stateMap: Record<number, 'DUPLICATE' | 'MULTIPLE'> = {};
+        const indexMap: number[] = [];
 
         let filteredIndex = 0;
         rows.forEach((_, globalIndex) => {
             if (relevantRowIds && !relevantRowIds.has(globalIndex)) return; // Skip if filtered out
+
+            indexMap.push(globalIndex);
 
             // This global row IS in the filtered list at 'filteredIndex'.
             // Find issues for this global row
@@ -63,50 +67,72 @@ export const WorkshopView = () => {
             if (rowIssues.length > 0) {
                 map[filteredIndex] = {};
                 rowIssues.forEach(issue => {
-                    map[filteredIndex][issue.column] = issue.issueType;
+                    // EXCLUSIVE FILTERING LOGIC
+                    if (filter === 'DUPLICATE') {
+                        if (issue.issueType === 'DUPLICATE') {
+                            map[filteredIndex][issue.column] = issue.issueType;
+                        }
+                    }
+                    else if (filter === 'FORMAT') {
+                        if (issue.issueType === 'FORMAT') {
+                            map[filteredIndex][issue.column] = issue.issueType;
+                        }
+                    }
+                    else if (filter === 'MISSING') {
+                        if (issue.issueType === 'MISSING') {
+                            map[filteredIndex][issue.column] = issue.issueType;
+                        }
+                    }
+                    else {
+                        map[filteredIndex][issue.column] = issue.issueType;
+                    }
                 });
+
+                // --- VISUAL HIERARCHY LOGIC ---
+                if (filter === 'DUPLICATE') {
+                    stateMap[filteredIndex] = 'DUPLICATE';
+                }
+                else if (filter === 'ALL') {
+                    if (rowIssues.length > 1) {
+                        stateMap[filteredIndex] = 'MULTIPLE';
+                    } else if (rowIssues[0].issueType === 'DUPLICATE') {
+                        stateMap[filteredIndex] = 'DUPLICATE';
+                    }
+                }
             }
 
             filteredIndex++;
         });
 
-        return { filteredRows: relevantRows, issueMap: map };
+        return { filteredRows: relevantRows, issueMap: map, rowStateMap: stateMap, globalIndexMap: indexMap };
     }, [rows, issues, filter]);
 
-    // 3. Handle Cell Updates (Fixing in place)
-    const handleCellUpdate = (rowIndex: number, colId: string, val: string) => {
-        // Need to map back to original index if filtered!
-        // For simplicity v1: We just pass the row index from the grid.
-        // But wait! DataGrid indices are relative to the *data passed to it*.
-        // Implementing "Real Index" tracking is complex. 
-        // Strategy: DataGrid should probably accept "originalRowIndex" if provided, or we pass the whole object.
-        // Workaround for V1: Since we don't have IDs in the CSV, we rely on array index.
-        // If we filter, the index 0 is not the original index 0.
-        // FIX: We need to find the ORIGINAL index.
+    // 3. Editing State
+    const [editingCell, setEditingCell] = useState<{ globalRowIndex: number, colId: string, currentValue: string } | null>(null);
+    const [editValue, setEditValue] = useState("");
 
-        let originalIndex = rowIndex;
-        if (filter !== 'ALL') {
-            // Re-calculate the specific original index based on our filter logic
-            // This is expensive O(N) searching. 
-            // Better: attached "originalIndex" to the row data? No, row data is pure.
-            // Best: We'll rebuild the filtered list to include the original index.
-            const relevantIssues = issues.filter(i => i.issueType === filter);
-            // We need a stable map.
-            // Let's do it in the useMemo above.
+    // 4. Handle Cell Click -> Open Modal
+    const handleCellUpdate = (rowIndex: number, colId: string, val: string) => {
+        const globalIndex = globalIndexMap[rowIndex];
+        if (globalIndex === undefined) {
+            console.error("Could not find global index for local index", rowIndex);
+            return;
         }
 
-        // Actually, let's solve this by passing a "meta" map to DataGrid? 
-        // No, let's keep it simple. Only allow editing in "ALL" view? No, that defeats the purpose.
+        setEditingCell({ globalRowIndex: globalIndex, colId, currentValue: val });
+        setEditValue(val);
+    };
 
-        // PLAN B: We will implement the 'updateCell' searching logic in the next step.
-        // For now, let's just get the UI rendering.
-        console.log("Update request:", rowIndex, colId, val);
-        updateCell(rowIndex, colId, val); // This is likely wrong for filtered views currently.
+    const saveEdit = () => {
+        if (!editingCell) return;
+        updateCell(editingCell.globalRowIndex, editingCell.colId, editValue);
+        setEditingCell(null);
     };
 
     return (
-        <div className="flex h-full bg-neutral-50 dark:bg-neutral-900">
-            {/* Sidebar */}
+        <div className="flex h-full bg-neutral-50 dark:bg-neutral-900 relative">
+            {/* ... Sidebar ... */}
+
             <div className="w-64 border-r border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 flex flex-col">
                 <div className="p-6 border-b border-neutral-200 dark:border-neutral-800">
                     <h1 className="text-xl font-bold text-blue-600 dark:text-blue-400">The Workshop</h1>
@@ -148,10 +174,18 @@ export const WorkshopView = () => {
                     />
                 </nav>
 
-                <div className="p-4 border-t border-neutral-200 dark:border-neutral-800">
+                <div className="p-4 border-t border-neutral-200 dark:border-neutral-800 space-y-2">
+                    <button
+                        onClick={() => downloadCleanCsv(rows, columns)}
+                        className="w-full flex items-center justify-center gap-2 text-sm font-medium bg-neutral-900 dark:bg-white text-white dark:text-black py-2.5 rounded-lg hover:opacity-90 transition-all shadow-sm"
+                    >
+                        <Download className="w-4 h-4" />
+                        Export Clean Data
+                    </button>
+
                     <button
                         onClick={() => setActiveTab('report')}
-                        className="flex items-center gap-2 text-sm text-neutral-500 hover:text-neutral-900 transition-colors"
+                        className="flex items-center justify-center w-full gap-2 text-sm text-neutral-500 hover:text-neutral-900 transition-colors py-2"
                     >
                         <ArrowLeft className="w-4 h-4" />
                         Back to Report
@@ -165,8 +199,26 @@ export const WorkshopView = () => {
                     <h2 className="font-semibold text-neutral-700 dark:text-neutral-200">
                         {filter === 'ALL' ? 'Master Dataset' : `${filter} Issues`}
                     </h2>
-                    <div className="text-xs text-neutral-500">
-                        {filteredRows.length} Rows Visible
+                    <div className="flex items-center gap-3">
+                        {filter === 'FORMAT' && (
+                            <button
+                                onClick={() => autoFormat()}
+                                className="text-xs font-medium bg-gradient-to-r from-yellow-100 to-yellow-50 text-yellow-800 px-3 py-1.5 rounded-full border border-yellow-200 hover:shadow-sm transition-all flex items-center gap-2"
+                            >
+                                <span className="text-md">✨</span> Auto-Fix Casing & Phones
+                            </button>
+                        )}
+                        {filter === 'DUPLICATE' && (
+                            <button
+                                onClick={() => resolveDuplicates()}
+                                className="text-xs font-medium bg-gradient-to-r from-blue-100 to-blue-50 text-blue-800 px-3 py-1.5 rounded-full border border-blue-200 hover:shadow-sm transition-all flex items-center gap-2"
+                            >
+                                <span className="text-md">✨</span> Remove All Copies
+                            </button>
+                        )}
+                        <div className="text-xs text-neutral-500">
+                            {filteredRows.length} Rows Visible
+                        </div>
                     </div>
                 </div>
 
@@ -175,11 +227,55 @@ export const WorkshopView = () => {
                         data={filteredRows}
                         columns={columns}
                         issueMap={issueMap}
+                        rowStateMap={rowStateMap}
                         className="shadow-sm border border-neutral-200 dark:border-neutral-800"
-                    // onCellClick={handleCellUpdate} 
+                        onCellClick={filter === 'FORMAT' || filter === 'DUPLICATE' ? undefined : handleCellUpdate}
+                        onDeleteRow={filter === 'DUPLICATE' || filter === 'MISSING' ? handleRemoveRow : undefined}
                     />
                 </div>
             </div>
+
+            {/* Simple Edit Modal Overlay */}
+            {editingCell && (
+                <div className="absolute inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
+                    <div className="bg-white dark:bg-neutral-900 rounded-xl shadow-2xl p-6 w-full max-w-md border border-neutral-200 dark:border-neutral-800">
+                        <h3 className="text-lg font-semibold mb-4 text-neutral-900 dark:text-white">Edit Cell</h3>
+
+                        <div className="mb-4">
+                            <label className="block text-xs font-medium text-neutral-500 uppercase mb-1">Column</label>
+                            <div className="text-sm font-mono bg-neutral-100 dark:bg-neutral-800 p-2 rounded">
+                                {editingCell.colId}
+                            </div>
+                        </div>
+
+                        <div className="mb-6">
+                            <label className="block text-xs font-medium text-neutral-500 uppercase mb-1">Value</label>
+                            <input
+                                autoFocus
+                                className="w-full p-3 bg-white dark:bg-black border border-neutral-300 dark:border-neutral-700 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none transition-all"
+                                value={editValue}
+                                onChange={(e) => setEditValue(e.target.value)}
+                                onKeyDown={(e) => e.key === 'Enter' && saveEdit()}
+                            />
+                        </div>
+
+                        <div className="flex justify-end gap-3">
+                            <button
+                                onClick={() => setEditingCell(null)}
+                                className="px-4 py-2 text-sm font-medium text-neutral-600 hover:text-neutral-900 transition-colors"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={saveEdit}
+                                className="px-4 py-2 text-sm font-medium bg-blue-600 hover:bg-blue-700 text-white rounded-lg shadow-sm transition-colors"
+                            >
+                                Save Changes
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };
