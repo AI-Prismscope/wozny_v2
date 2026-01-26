@@ -14,6 +14,7 @@ export const ReportView = () => {
 
     // Calculate Stats
     const stats = React.useMemo(() => {
+        console.log('ReportView v0.1.1 rendering');
         // Filter out ignored columns
         const activeIssues = issues.filter(i => !ignoredColumns.includes(i.column));
 
