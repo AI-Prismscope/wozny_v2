@@ -81,3 +81,28 @@
 **Solution Implemented:** `Switched to substring extraction using indexOf('[') and lastIndexOf(']'). This reliably extracts the array payload regardless of surrounding markdown.`
 **Refactoring Action:** `Removed fragile Regex dependency in AnalysisView.`
 ---
+
+**Timestamp:** `2026-01-25 19:15:00`
+**Category:** `EVAL`
+**Status:** `SOLVED`
+**Error Message:** `Unexpected token 'function'` / `Unexpected token .`
+**Root Cause Analysis:** `The Llama 1B model was outputting conversational text ("Here is the code") and "Arrow Function" headers before the actual Javascript code. The simple cleanup logic failed to strip this nose, causing new Function() to crash.`
+**Solution Implemented:** `Implemented a smarter parser that first looks for Markdown blocks (backticks), and if that fails, scans for the specific arrow function signature "(row) =>".`
+**Refactoring Action:** `Hardened Code Extraction logic in AskWoznyView.tsx.`
+---
+**Timestamp:** `2026-01-25 19:30:00`
+**Category:** `EVAL`
+**Status:** `SOLVED`
+**Error Message:** `Search returned 0 results (False Negatives)`
+**Root Cause Analysis:** `The AI generated code using Dot Notation (row.Account Manager) which returns undefined for keys with spaces, and used strict equality (===) which failed on case/whitespace mismatches.`
+**Solution Implemented:** `Updated System Prompt to strictly enforce: 1. Bracket Notation (row['Key']), 2. .toLowerCase(), 3. .trim().`
+**Refactoring Action:** `Refined System Prompt in useWoznyLLM.ts for robust data access.`
+---
+**Timestamp:** `2026-01-25 19:53:00`
+**Category:** `EVAL`
+**Status:** `SOLVED`
+**Error Message:** `Unexpected token '?'`
+**Root Cause Analysis:** `The browser's dynamic code evaluation (new Function) environment did not support modern Optional Chaining (?.) syntax used by the AI.`
+**Solution Implemented:** `Updated System Prompt to explicitly forbid ?. and mandate classical && null checks.`
+**Refactoring Action:** `Downgraded generating syntax complexity in useWoznyLLM.ts for compatibility.`
+---
