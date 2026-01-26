@@ -27,16 +27,18 @@ export interface WoznyState {
 
     // User Selection State
     userSelection: number[];
+    ignoredColumns: string[]; // NEW: Persist ignored columns
 
     // Actions
     setCsvData: (fileName: string, data: RowData[], columns: string[]) => void;
-    setAnalysisResults: (issues: AnalysisIssue[]) => void; // New action
+    setAnalysisResults: (issues: AnalysisIssue[]) => void;
     reset: () => void;
     setActiveTab: (tab: WoznyState['activeTab']) => void;
     updateCell: (rowIndex: number, columnId: string, value: string) => void;
     autoFormat: () => void;
     removeRow: (rowIndex: number) => void;
     resolveDuplicates: () => void;
+    toggleIgnoreColumn: (columnId: string) => void; // NEW: Toggle action
 
     // Bulk Actions
     setUserSelection: (indices: number[]) => void;
@@ -54,6 +56,7 @@ export const useWoznyStore = create<WoznyState>()(
         activeTab: 'upload',
         isAnalyzing: false,
         userSelection: [],
+        ignoredColumns: [],
 
 
 
@@ -163,6 +166,17 @@ export const useWoznyStore = create<WoznyState>()(
 
                 // Re-Analyze
                 state.issues = runDeterministicAnalysis(state.rows, state.columns);
+                // Re-Analyze
+                state.issues = runDeterministicAnalysis(state.rows, state.columns);
+            }),
+
+        toggleIgnoreColumn: (columnId) =>
+            set((state) => {
+                if (state.ignoredColumns.includes(columnId)) {
+                    state.ignoredColumns = state.ignoredColumns.filter(c => c !== columnId);
+                } else {
+                    state.ignoredColumns.push(columnId);
+                }
             }),
 
         // --- NEW: User Selection & Bulk Edit ---
