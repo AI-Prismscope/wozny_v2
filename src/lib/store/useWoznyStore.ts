@@ -22,8 +22,11 @@ export interface WoznyState {
     issues: AnalysisIssue[]; // Flat list of all issues
 
     // App State
-    activeTab: 'upload' | 'table' | 'analysis' | 'report' | 'workshop' | 'diff';
+    activeTab: 'upload' | 'ask-wozny' | 'analysis' | 'report' | 'workshop' | 'diff';
     isAnalyzing: boolean;
+
+    // User Selection State
+    userSelection: number[];
 
     // Actions
     setCsvData: (fileName: string, data: RowData[], columns: string[]) => void;
@@ -34,6 +37,11 @@ export interface WoznyState {
     autoFormat: () => void;
     removeRow: (rowIndex: number) => void;
     resolveDuplicates: () => void;
+
+    // Bulk Actions
+    setUserSelection: (indices: number[]) => void;
+    clearUserSelection: () => void;
+    bulkUpdate: (indices: number[], columnId: string, value: string) => void;
 }
 
 export const useWoznyStore = create<WoznyState>()(
@@ -45,6 +53,7 @@ export const useWoznyStore = create<WoznyState>()(
         issues: [],
         activeTab: 'upload',
         isAnalyzing: false,
+        userSelection: [],
 
 
 
@@ -154,6 +163,33 @@ export const useWoznyStore = create<WoznyState>()(
 
                 // Re-Analyze
                 state.issues = runDeterministicAnalysis(state.rows, state.columns);
+            }),
+
+        // --- NEW: User Selection & Bulk Edit ---
+        setUserSelection: (indices) =>
+            set((state) => {
+                state.userSelection = indices;
+            }),
+
+        clearUserSelection: () =>
+            set((state) => {
+                state.userSelection = [];
+            }),
+
+        bulkUpdate: (indices, columnId, value) =>
+            set((state) => {
+                let updated = false;
+                indices.forEach(idx => {
+                    if (state.rows[idx]) {
+                        state.rows[idx][columnId] = value;
+                        updated = true;
+                    }
+                });
+
+                if (updated) {
+                    // Re-run analysis once after all updates
+                    state.issues = runDeterministicAnalysis(state.rows, state.columns);
+                }
             }),
     }))
 );

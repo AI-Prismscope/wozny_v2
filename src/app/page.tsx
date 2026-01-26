@@ -2,7 +2,7 @@
 
 import { Shell } from '@/components/layout/Shell';
 import { UploadView } from '@/features/upload/views/UploadView';
-import { TableView } from '@/features/table/views/TableView';
+import { AskWoznyView } from '@/features/ask-wozny/views/AskWoznyView';
 import { AnalysisView } from '@/features/analysis/views/AnalysisView';
 import { ReportView } from '@/features/report/views/ReportView';
 import { WorkshopView } from '@/features/workshop/views/WorkshopView';
@@ -16,10 +16,10 @@ export default function Home() {
   return (
     <Shell>
       {activeTab === 'upload' && <UploadView />}
-      {activeTab === 'table' && <TableView />}
       {activeTab === 'analysis' && <AnalysisView />}
       {activeTab === 'report' && <ReportView />}
       {activeTab === 'workshop' && <WorkshopView />}
+      {activeTab === 'ask-wozny' && <AskWoznyView />}
       {activeTab === 'diff' && <DiffView />}
     </Shell>
   );

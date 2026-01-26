@@ -3,7 +3,7 @@
 import React from 'react';
 import { useWoznyStore } from '@/lib/store/useWoznyStore';
 import clsx from 'clsx';
-import { UploadCloud, Table, FileText, Wrench, Download } from 'lucide-react';
+import { UploadCloud, Table, FileText, Wrench, Download, Wand2 } from 'lucide-react';
 
 export const Navbar = () => {
     const activeTab = useWoznyStore((state) => state.activeTab);
@@ -13,11 +13,13 @@ export const Navbar = () => {
 
     const tabs = [
         { id: 'upload', label: 'Upload', icon: UploadCloud, hidden: false },
-        { id: 'table', label: 'Table Data', icon: Table, hidden: false },
-        { id: 'analysis', label: 'Analysis', icon: FileText, hidden: true }, // Logic: Analysis is a process, usually transient. But user asked for "Report tab". Let's map Analysis View to 'Report' tab only when done? Or just keep it as a step. User asked for "Table tab. Report tab. workshop tab." AnalysisView is the loading screen.
         { id: 'report', label: 'Report', icon: FileText, hidden: false },
         { id: 'workshop', label: 'Workshop', icon: Wrench, hidden: false },
+        { id: 'ask-wozny', label: 'Ask Wozny', icon: Wand2, hidden: false },
         { id: 'diff', label: 'Review & Export', icon: Download, hidden: false },
+        // Hidden / Deprecated
+        { id: 'analysis', label: 'Analysis', icon: FileText, hidden: true },
+        { id: 'table', label: 'Table Data', icon: Table, hidden: true },
     ] as const;
 
     return (

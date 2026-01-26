@@ -7,7 +7,7 @@ import { FileText, AlertTriangle, Ban, Layers, ArrowLeft, Download } from 'lucid
 import clsx from 'clsx';
 import { downloadCleanCsv } from '@/lib/export-utils';
 
-type FilterType = 'ALL' | 'MISSING' | 'FORMAT' | 'DUPLICATE';
+type FilterType = 'ALL' | 'MISSING' | 'FORMAT' | 'DUPLICATE' | 'USER_SELECTION';
 
 export const WorkshopView = () => {
     const rows = useWoznyStore((state) => state.rows);
@@ -19,7 +19,15 @@ export const WorkshopView = () => {
     const resolveDuplicates = useWoznyStore((state) => state.resolveDuplicates);
     const autoFormat = useWoznyStore((state) => state.autoFormat);
 
-    const [filter, setFilter] = useState<FilterType>('ALL');
+    // Bulk Edit State
+    const userSelection = useWoznyStore((state) => state.userSelection);
+    const clearUserSelection = useWoznyStore((state) => state.clearUserSelection);
+    const bulkUpdate = useWoznyStore((state) => state.bulkUpdate);
+
+    const [filter, setFilter] = useState<FilterType>(
+        // Auto-select tab if arriving with selection
+        useWoznyStore.getState().userSelection.length > 0 ? 'USER_SELECTION' : 'ALL'
+    );
 
     const handleRemoveRow = (rowIndex: number) => {
         const globalIndex = globalIndexMap[rowIndex];
@@ -33,78 +41,64 @@ export const WorkshopView = () => {
         MISSING: issues.filter(i => i.issueType === 'MISSING').length,
         FORMAT: issues.filter(i => i.issueType === 'FORMAT').length,
         DUPLICATE: issues.filter(i => i.issueType === 'DUPLICATE').length,
-    }), [rows.length, issues]);
+        USER_SELECTION: userSelection.length
+    }), [rows.length, issues, userSelection.length]);
 
     // 2. Filter Rows & Pre-compute Highlights
     const { filteredRows, issueMap, rowStateMap, globalIndexMap } = useMemo(() => {
-        // Find Row IDs that have this specific issue type
+        // Step A: Determine Rows allowed by Tab Filter
         let relevantRowIds: Set<number> | null = null;
         if (filter !== 'ALL') {
-            relevantRowIds = new Set(
-                issues.filter(i => i.issueType === filter).map(i => i.rowId)
-            );
+            if (filter === 'USER_SELECTION') {
+                relevantRowIds = new Set(userSelection);
+            } else {
+                relevantRowIds = new Set(
+                    issues.filter(i => i.issueType === filter).map(i => i.rowId)
+                );
+            }
         }
 
-        // Filter the rows
-        // If ALL, we keep all. If Filtered, we keep only relevant ones.
-        const relevantRows = rows.filter((_, idx) => relevantRowIds ? relevantRowIds.has(idx) : true);
+        // Step B: Get Candidate Indices (Global)
+        const candidateIndices: number[] = [];
+        rows.forEach((_, idx) => {
+            if (relevantRowIds && !relevantRowIds.has(idx)) return;
+            candidateIndices.push(idx);
+        });
 
-        // CREATE MAPPING: Filtered Index -> Global Index
+        // Step C: No AI Filter anymore
+        let finalIndices = candidateIndices;
+
+        // Step D: Construct Output
+        const finalRows: RowData[] = [];
         const map: Record<number, Record<string, string>> = {};
         const stateMap: Record<number, 'DUPLICATE' | 'MULTIPLE'> = {};
         const indexMap: number[] = [];
 
-        let filteredIndex = 0;
-        rows.forEach((_, globalIndex) => {
-            if (relevantRowIds && !relevantRowIds.has(globalIndex)) return; // Skip if filtered out
-
+        finalIndices.forEach((globalIndex, viewIndex) => {
+            finalRows.push(rows[globalIndex]);
             indexMap.push(globalIndex);
 
-            // This global row IS in the filtered list at 'filteredIndex'.
-            // Find issues for this global row
+            // Compute Highlight State for this View Row
             const rowIssues = issues.filter(i => i.rowId === globalIndex);
-
             if (rowIssues.length > 0) {
-                map[filteredIndex] = {};
+                map[viewIndex] = {};
                 rowIssues.forEach(issue => {
-                    // EXCLUSIVE FILTERING LOGIC
-                    if (filter === 'DUPLICATE') {
-                        if (issue.issueType === 'DUPLICATE') {
-                            map[filteredIndex][issue.column] = issue.issueType;
-                        }
-                    }
-                    else if (filter === 'FORMAT') {
-                        if (issue.issueType === 'FORMAT') {
-                            map[filteredIndex][issue.column] = issue.issueType;
-                        }
-                    }
-                    else if (filter === 'MISSING') {
-                        if (issue.issueType === 'MISSING') {
-                            map[filteredIndex][issue.column] = issue.issueType;
-                        }
-                    }
-                    else {
-                        map[filteredIndex][issue.column] = issue.issueType;
+                    // Only show issues relevant to current view (or all if ALL)
+                    if (filter === 'ALL' || issue.issueType === filter) {
+                        map[viewIndex][issue.column] = issue.issueType;
                     }
                 });
 
-                // --- VISUAL HIERARCHY LOGIC ---
-                if (filter === 'DUPLICATE') {
-                    stateMap[filteredIndex] = 'DUPLICATE';
-                }
+                // Row-Level Status
+                if (filter === 'DUPLICATE') stateMap[viewIndex] = 'DUPLICATE';
                 else if (filter === 'ALL') {
-                    if (rowIssues.length > 1) {
-                        stateMap[filteredIndex] = 'MULTIPLE';
-                    } else if (rowIssues[0].issueType === 'DUPLICATE') {
-                        stateMap[filteredIndex] = 'DUPLICATE';
-                    }
+                    if (rowIssues.length > 1) stateMap[viewIndex] = 'MULTIPLE';
+                    else if (rowIssues[0].issueType === 'DUPLICATE') stateMap[viewIndex] = 'DUPLICATE';
                 }
             }
-
-            filteredIndex++;
         });
 
-        return { filteredRows: relevantRows, issueMap: map, rowStateMap: stateMap, globalIndexMap: indexMap };
+        return { filteredRows: finalRows, issueMap: map, rowStateMap: stateMap, globalIndexMap: indexMap };
     }, [rows, issues, filter]);
 
     // 3. Editing State
@@ -129,10 +123,19 @@ export const WorkshopView = () => {
         setEditingCell(null);
     };
 
+    // Bulk Edit Handlers
+    const [bulkCol, setBulkCol] = useState("");
+    const [bulkVal, setBulkVal] = useState("");
+
+    const handleBulkUpdate = () => {
+        if (!bulkCol) return;
+        bulkUpdate(userSelection, bulkCol, bulkVal);
+        // We don't clear selection or value, allowing multiple edits
+    };
+
     return (
         <div className="flex h-full bg-neutral-50 dark:bg-neutral-900 relative">
-            {/* ... Sidebar ... */}
-
+            {/* Sidebar */}
             <div className="w-64 border-r border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 flex flex-col">
                 <div className="p-6 border-b border-neutral-200 dark:border-neutral-800">
                     <h1 className="text-xl font-bold text-blue-600 dark:text-blue-400">The Workshop</h1>
@@ -164,6 +167,17 @@ export const WorkshopView = () => {
                         onClick={() => setFilter('FORMAT')}
                         color="text-yellow-500"
                     />
+
+                    {counts.USER_SELECTION > 0 && (
+                        <SidebarItem
+                            label="User Selection"
+                            count={counts.USER_SELECTION}
+                            icon={Layers} // Reusing Layers or maybe specialized icon?
+                            isActive={filter === 'USER_SELECTION'}
+                            onClick={() => setFilter('USER_SELECTION')}
+                            color="text-purple-600"
+                        />
+                    )}
                     <SidebarItem
                         label="Duplicates"
                         count={counts.DUPLICATE}
@@ -200,6 +214,51 @@ export const WorkshopView = () => {
                         {filter === 'ALL' ? 'Master Dataset' : `${filter} Issues`}
                     </h2>
                     <div className="flex items-center gap-3">
+                        {/* Ask Wozny Search Bar Removed */}
+
+                        {/* Bulk Edit Toolbar */}
+                        {filter === 'USER_SELECTION' && (
+                            <div className="flex items-center gap-3 animate-in fade-in slide-in-from-right-4">
+                                <span className="text-xs font-medium text-neutral-500 uppercase">Bulk Edit:</span>
+
+                                <select
+                                    className="text-xs border border-neutral-300 dark:border-neutral-700 rounded px-2 py-1 bg-white dark:bg-black"
+                                    onChange={(e) => setBulkCol(e.target.value)}
+                                    value={bulkCol}
+                                >
+                                    <option value="">Select Column...</option>
+                                    {columns.map(c => <option key={c} value={c}>{c}</option>)}
+                                </select>
+
+                                <input
+                                    className="text-xs border border-neutral-300 dark:border-neutral-700 rounded px-2 py-1 w-32 bg-white dark:bg-black"
+                                    placeholder="New Value"
+                                    value={bulkVal}
+                                    onChange={(e) => setBulkVal(e.target.value)}
+                                />
+
+                                <button
+                                    onClick={handleBulkUpdate}
+                                    disabled={!bulkCol}
+                                    className="text-xs font-bold bg-purple-600 text-white px-3 py-1 rounded hover:bg-purple-700 disabled:opacity-50"
+                                >
+                                    Apply
+                                </button>
+
+                                <div className="h-4 w-px bg-neutral-300 mx-1" />
+
+                                <button
+                                    onClick={() => {
+                                        clearUserSelection();
+                                        setFilter('ALL');
+                                    }}
+                                    className="text-xs text-red-500 hover:text-red-700 underline"
+                                >
+                                    Clear Selection
+                                </button>
+                            </div>
+                        )}
+
                         {filter === 'FORMAT' && (
                             <button
                                 onClick={() => autoFormat()}
