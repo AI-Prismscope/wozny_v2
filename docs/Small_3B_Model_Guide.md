@@ -3,25 +3,41 @@
 
 Working with small parameter models (1B - 3B) requires a fundamentally different approach than working with large frontier models (GPT-4, Claude 3.5 Sonnet). These models obey instructions differently and are prone to specific types of errors.
 
-## Core Philosophy: "The Recipe Approach"
+## Core Philosophy: "Pattern-Based Engineering"
 
-**Do not scold. Do not warn. Just give the recipe.**
+**Don't tell the model what to do. Show it what you want.**
 
-Small models struggle with negative constraints ("Do NOT do X"). They often focus on the topic "X" and do it anyway. Instead, provide strict, positive instructions on exactly what structure to produce.
+Small models (1B-3B) are effectively "Pattern Completion Engines". They struggle with complex logical rules (Negative Constraints) but excel at mimicking a rhythm.
 
-### ❌ Bad Prompting (Negative)
-```text
-- Do NOT use markdown.
-- Do NOT use variable declarations.
-- Do NOT use optional chaining.
+### Level 1: The Recipe Approach (Rule-Based)
+*Good for 8B+ models.*
+"Do not use markdown. Output raw code only."
+
+### Level 2: The Pattern Match Approach (Few-Shot)
+*Mandatory for 1B models.*
+Instead of rules, provide multiple examples that establish a rigid pattern. The model will naturally complete the pattern without needing to "think" about rules.
+
+### ✅ The "G.O.A.T." Prompt Structure
+```javascript
+const systemPrompt = `
+You are a JavaScript Logic Generator.
+Task: Convert user requests into raw arrow functions.
+
+DATA REFERENCE:
+- Missing string: "[MISSING]"
+
+EXAMPLES:
+Input: "show rows with missing data in telephone"
+Output: (row) => row["telephone"] === "[MISSING]"
+
+Input: "filter for Certification_Renewal_Date missing"
+Output: (row) => row["Certification_Renewal_Date"] === "[MISSING]"
+
+Input: "find blank entries in Ethnicity"
+Output: (row) => row["Ethnicity"] === "[MISSING]"
+`;
 ```
-
-### ✅ Good Prompting (Positive)
-```text
-1. OUTPUT RAW CODE ONLY.
-2. USE && OPERATOR for null checks.
-3. USE BRACKET NOTATION for columns.
-```
+**Why this works:** Checks for "Pattern Completion" rather than "Instruction Following".
 
 ---
 

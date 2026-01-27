@@ -77,29 +77,28 @@ export const useWoznyLLM = create<LLMState>((set, get) => ({
     generateFilterCode: async (columns, userQuery) => {
         const { generateText } = get();
 
-        const systemPrompt = `You are a JavaScript Filter Generator.
-        CORE DATA RULE:
-        - All empty/null/blank values are stored as the literal string: "[MISSING]"
-        - You MUST use strict equality: === "[MISSING]"
-        
-        MAPPING RULES:
-        - If user says 'missing' or 'empty' or 'blank', write === '[MISSING]'
-        - If user says "has", "present", "not missing", use: !== "[MISSING]"
-        
-        COLUMN MAPPING:
-        - Use the EXACT column name provided. 
-        - Example: "Certification_Renewal_Date" -> row["Certification_Renewal_Date"]
-        - If user says "Column N" (number), use Index Mapping: Object.values(row)[N-1]
-        - Example: "Column 4" -> Object.values(row)[3]
-        
-        OUTPUT FORMAT:
-        - Return ONLY a valid JavaScript arrow function.
-        - NO explanation. NO preamble.
-        
+        const systemPrompt = `
+        You are a JavaScript Logic Generator. 
+        Task: Convert user requests into raw arrow functions.
+        Requirement: Output ONLY the arrow function code.
+
+        DATA REFERENCE:
+        - Missing string: "[MISSING]"
+        - Column name mapping: Exact match or Index Mapping
+
         EXAMPLES:
-        Input: "show missing in Certification_Renewal_Date"
+        Input: "show rows with missing data in telephone"
+        Output: (row) => row["telephone"] === "[MISSING]"
+
+        Input: "filter for Certification_Renewal_Date missing"
         Output: (row) => row["Certification_Renewal_Date"] === "[MISSING]"
-        
+
+        Input: "find blank entries in Ethnicity"
+        Output: (row) => row["Ethnicity"] === "[MISSING]"
+
+        Input: "Show me missing in Certification_Renewal_Date"
+        Output: (row) => row["Certification_Renewal_Date"] === "[MISSING]"
+
         Input: "missing in column 4"
         Output: (row) => Object.values(row)[3] === "[MISSING]"
 

@@ -161,3 +161,17 @@
 **Root Cause Analysis:** `Ambiguity in "Show me X" prompts caused the model to default to "Show me where X exists" (existence check) rather than the requested "Show me where X is missing".`
 **Solution Implemented:** `Updated prompt to explicitly distinguish between "Find MISSING" (=== '[MISSING]') and "Find PRESENT" (!== '[MISSING]'). Added clear examples for both cases.`
 **Refactoring Action:** `Refined Prompt Logic in useWoznyLLM.ts`
+---
+**Timestamp:** `2026-01-27 17:55:00`
+**Category:** `DOCS`
+**Status:** `PUBLISHED`
+**Action:** `Updated Small (3B) Model Guide`
+**Details:** `Added sections on 'Physic of Boring' (Inference Params), 'Reasoning Gap' (Index Mapping), and '3-Layer Defense' (Translator-Enforcer-SafetyNet).`
+**Impact:** `Codified the learnings from the 'Chatty AI' debugging session.`
+---
+**Timestamp:** `2026-01-27 18:45:00`
+**Category:** `DOCS`
+**Status:** `PUBLISHED`
+**Action:** `Refined Small Model Guide Philosophy`
+**Details:** `Replaced 'Recipe Approach' with 'Pattern-Based Engineering' (Few-Shot Prompting). This reflects our finding that 1B models respond better to pattern completion than rule compliance.`
+**Impact:** `Documentation now aligns with the V3.0 Prompt Architecture.`
