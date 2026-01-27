@@ -91,7 +91,8 @@ export const useWoznyLLM = create<LLMState>((set, get) => ({
         5. ALWAYS USE BRACKET NOTATION: row['Column Name']
         6. HANDLE MISSING VALUES:
            - In this data, missing values are exactly the string "[MISSING]"
-           - To find missing rows: row['Col'] === '[MISSING]'
+           - To find MISSING rows: row['Col'] === '[MISSING]'
+           - To find PRESENT rows (not missing): row['Col'] !== '[MISSING]'
         7. STRING MATCHING:
            - Always use .trim() and .toLowerCase()
            - Example: row['Status'] && row['Status'].trim().toLowerCase() === 'active'
@@ -102,6 +103,9 @@ export const useWoznyLLM = create<LLMState>((set, get) => ({
 
         Input: "Show rows where City is New York"
         Output: (row) => row['City'] && row['City'] !== '[MISSING]' && row['City'].trim().toLowerCase() === 'new york'
+
+        Input: "Show rows that have a Phone Number"
+        Output: (row) => row['Phone'] !== '[MISSING]'
         `;
 
         const response = await generateText(userQuery, systemPrompt, {

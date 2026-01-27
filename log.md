@@ -153,3 +153,11 @@
 **Action:** `Removed Defensive Regex from useWoznyLLM.ts`
 **Rationale:** `With Temperature 0.0 and correct Prompting now enforcing strict output, the complex regex fallback was dead code. Replaced with simple Markdown stripper for cleaner maintenance.`
 **Result:** `Simplified codebase while maintaining robustness.`
+---
+**Timestamp:** `2026-01-27 15:40:00`
+**Category:** `LOGIC_FIX`
+**Status:** `SOLVED`
+**Error Message:** `AI Inverted "Missing" Logic (returned present rows)`
+**Root Cause Analysis:** `Ambiguity in "Show me X" prompts caused the model to default to "Show me where X exists" (existence check) rather than the requested "Show me where X is missing".`
+**Solution Implemented:** `Updated prompt to explicitly distinguish between "Find MISSING" (=== '[MISSING]') and "Find PRESENT" (!== '[MISSING]'). Added clear examples for both cases.`
+**Refactoring Action:** `Refined Prompt Logic in useWoznyLLM.ts`
