@@ -51,6 +51,7 @@ export const ReportView = () => {
             formattingCount: format.length,
             duplicateCount: duplicate.length,
             formatColumnsList, // Return array for UI
+            missingColumnsList: [...new Set(missing.map(i => i.column))], // Return array for UI
             missingLabel: missingColumns ? `Missing in: ${missingColumns}` : "No missing values",
         };
     }, [issues, rows, ignoredColumns]);
@@ -108,8 +109,23 @@ export const ReportView = () => {
                         <Ban className="w-5 h-5" />
                         <h3 className="font-semibold">Missing Values</h3>
                     </div>
-                    <p className="text-3xl font-bold text-neutral-900 dark:text-white">{stats.missingCount}</p>
-                    <p className="text-sm text-neutral-500 truncate">{stats.missingLabel}</p>
+                    <p className="text-3xl font-bold text-neutral-900 dark:text-white mb-2">{stats.missingCount}</p>
+
+                    {/* Interactive Badges */}
+                    <div className="flex flex-wrap gap-2">
+                        {stats.missingColumnsList.map(col => (
+                            <button
+                                key={col}
+                                onClick={() => toggleIgnoreColumn(col)}
+                                className="inline-flex items-center gap-1 px-2 py-1 bg-red-100 hover:bg-red-200 dark:bg-red-900/30 dark:hover:bg-red-900/50 text-red-800 dark:text-red-200 text-xs rounded-full transition-colors group"
+                                title="Ignore this column to improve score"
+                            >
+                                {col}
+                                <span className="text-red-600 dark:text-red-400 group-hover:text-red-900 dark:group-hover:text-red-100">×</span>
+                            </button>
+                        ))}
+                        {stats.missingColumnsList.length === 0 && <span className="text-sm text-neutral-500">No missing values</span>}
+                    </div>
                 </div>
                 <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 p-6 rounded-xl shadow-sm dark:shadow-none">
                     <div className="flex items-center gap-3 mb-2 text-blue-500 dark:text-blue-400">
