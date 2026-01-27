@@ -76,19 +76,27 @@ export const useWoznyLLM = create<LLMState>((set, get) => ({
 
         const systemPrompt = `You are a Javascript Expert. 
         Your task is to write a single Javascript ARROW FUNCTION that filters a row of data.
-        The row object has these keys: ${columns.join(', ')}.
+        The row object matches the CSV columns.
+        
+        Available Columns: ${JSON.stringify(columns)}
         
         Follow these rules strictly:
-        1. OUTPUT RAW CODE ONLY. No markdown, no variables, no explanations.
-        2. USE BRACKET NOTATION with SINGLE QUOTES for columns.
-           Example: row['Account Manager']
-        3. CHECK FOR EXISTENCE using the && operator.
+        1. OUTPUT RAW CODE ONLY. 
+        2. USE STANDARD JAVASCRIPT ES5 SYNTAX. (No Type Annotations).
+        3. ALWAYS USE BRACKET NOTATION with EXACT column names.
+           Example: row['Certification Renewal Date']
+        4. GUARD AGAINST MISSING DATA using logical AND (&&).
            Example: row['Name'] && row['Name'] === 'John'
-        4. TRIM WHITESPACE from values.
-        5. IGNORE CASE: Use .toLowerCase() for text comparisons.
+        5. HANDLE QUOTES IN HEADERS by using double quotes for the key.
+           Example: row["Client's Name"]
+        6. NORMALIZE STRINGS: Use .trim() and .toLowerCase() for all comparisons.
         
-        Example Input: "Show items with status Active"
-        Example Output: (row) => row['Status'] && row['Status'].trim().toLowerCase() === 'active'
+        Examples:
+        Input: "Show items with status Active"
+        Output: (row) => row['Status'] && row['Status'].trim().toLowerCase() === 'active'
+
+        Input: "Show rows where Email is missing"
+        Output: (row) => !row['Email'] || row['Email'].trim() === ''
         `;
 
         const response = await generateText(userQuery, systemPrompt);

@@ -106,3 +106,11 @@
 **Solution Implemented:** `Updated System Prompt to explicitly forbid ?. and mandate classical && null checks.`
 **Refactoring Action:** `Downgraded generating syntax complexity in useWoznyLLM.ts for compatibility.`
 ---
+---
+**Timestamp:** `2026-01-26 22:20:00`
+**Category:** `EVAL`
+**Status:** `SOLVED`
+**Error Message:** `SyntaxError: Unexpected token ':'` / `Hallucination: Filtered for 'Active' instead of 'Missing'`
+**Root Cause Analysis:** `The small model overfitted to the single provided example ("Status Active") and hallucinated TypeScript syntax ((row: any)) which is invalid in browser runtime execution.`
+**Solution Implemented:** `Refactored System Prompt using "The Recipe Approach" (Positive Constraints). Explicitly commanded USE STANDARD JAVASCRIPT ES5 SYNTAX and added a specific "Missing Value" example to prevent overfitting.`
+**Refactoring Action:** `Updated useWoznyLLM.ts prompt logic.`
