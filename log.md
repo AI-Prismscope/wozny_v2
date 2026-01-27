@@ -122,3 +122,11 @@
 **Root Cause Analysis:** `The AI assumed "missing" meant empty string or null. However, the CSV Parser explicitly transforms empty values into the string literal "[MISSING]". The AI's generated code (!row['Col']) returned false because "[MISSING]" is a truthy non-empty string.`
 **Solution Implemented:** `Updated System Prompt to explicitly instruct the model that missing values equal '[MISSING]'.`
 **Refactoring Action:** `Updated useWoznyLLM.ts to handle sentinel values.`
+---
+**Timestamp:** `2026-01-26 22:55:00`
+**Category:** `EVAL`
+**Status:** `SOLVED`
+**Error Message:** `AI Output Too Chatty / Persistent Hallucination`
+**Root Cause Analysis:** `The previous prompt was too complex and the example provided ("Active") was being copied blindly by the model for unrelated queries. The role "Expert" also encouraged conversational explanations instead of raw code.`
+**Solution Implemented:** `Overhauled System Prompt: Changed role to "Code Snippet Generator". Removed the distracting "Active" example. Added explicit "Missng vs Present" logic examples. Enforced "No Intro/Outro" rule.`
+**Refactoring Action:** `Streamlined useWoznyLLM.ts prompt.`

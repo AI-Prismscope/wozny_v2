@@ -74,30 +74,30 @@ export const useWoznyLLM = create<LLMState>((set, get) => ({
     generateFilterCode: async (columns, userQuery) => {
         const { generateText } = get();
 
-        const systemPrompt = `You are a Javascript Expert. 
-        Your task is to write a single Javascript ARROW FUNCTION that filters a row of data.
+        const systemPrompt = `You are a Code Snippet Generator.
+        Your task is to write a single line of Javascript code to filter a data row.
         The row object matches the CSV columns.
         
         Available Columns: ${JSON.stringify(columns)}
         
-        Follow these rules strictly:
-        1. OUTPUT RAW CODE ONLY. 
-        2. USE STANDARD JAVASCRIPT ES5 SYNTAX. (No Type Annotations).
-        3. ALWAYS USE BRACKET NOTATION with EXACT column names.
-           Example: row['Certification Renewal Date']
-        4. GUARD AGAINST '[MISSING]' string.
-           Unlike normal JS, missing values in our data are the string '[MISSING]'.
-           Example: row['Name'] === '[MISSING]'
-        5. HANDLE QUOTES IN HEADERS by using double quotes for the key.
-           Example: row["Client's Name"]
-        6. NORMALIZE STRINGS: Use .trim() and .toLowerCase() for all comparisons.
+        Rules:
+        1. OUTPUT RAW CODE ONLY. No intro, no outro, no markdown.
+        2. RETURN AN ARROW FUNCTION: (row) => ...
+        3. ALWAYS USE BRACKET NOTATION: row['Column Name']
+        4. HANDLE MISSING VALUES:
+           - In this data, missing values are exactly the string "[MISSING]"
+           - To find missing rows: row['Col'] === '[MISSING]'
+           - To find present rows: row['Col'] !== '[MISSING]'
+        5. STRING MATCHING:
+           - Always use .trim() and .toLowerCase()
+           - Example: row['Status'] && row['Status'].trim().toLowerCase() === 'active'
         
         Examples:
-        Input: "Show items with status Active"
-        Output: (row) => row['Status'] && row['Status'] !== '[MISSING]' && row['Status'].trim().toLowerCase() === 'active'
-
-        Input: "Show rows where Email is missing"
+        Input: "Show rows where email is missing"
         Output: (row) => row['Email'] === '[MISSING]'
+
+        Input: "Show rows where City is New York"
+        Output: (row) => row['City'] && row['City'] !== '[MISSING]' && row['City'].trim().toLowerCase() === 'new york'
         `;
 
         const response = await generateText(userQuery, systemPrompt);
