@@ -18,7 +18,7 @@ interface LLMState {
 
     // Actions
     initialize: () => Promise<void>;
-    generateText: (prompt: string, systemPrompt?: string) => Promise<string>;
+    generateText: (prompt: string, systemPrompt?: string, options?: { temperature?: number; top_p?: number; max_tokens?: number }) => Promise<string>;
 
     // Specialized Skills
     generateFilterCode: (columns: string[], userQuery: string) => Promise<string>;
@@ -54,7 +54,7 @@ export const useWoznyLLM = create<LLMState>((set, get) => ({
         }
     },
 
-    generateText: async (prompt, systemPrompt) => {
+    generateText: async (prompt, systemPrompt, options) => {
         const engine = get().engine;
         if (!engine) throw new Error("Engine not initialized");
 
@@ -66,6 +66,9 @@ export const useWoznyLLM = create<LLMState>((set, get) => ({
 
         const reply = await engine.chat.completions.create({
             messages,
+            temperature: options?.temperature ?? 0.7,
+            top_p: options?.top_p,
+            max_tokens: options?.max_tokens,
         });
 
         return reply.choices[0]?.message?.content || "";
@@ -74,21 +77,22 @@ export const useWoznyLLM = create<LLMState>((set, get) => ({
     generateFilterCode: async (columns, userQuery) => {
         const { generateText } = get();
 
-        const systemPrompt = `You are a Code Snippet Generator.
+        const systemPrompt = `You are a precise, technical execution engine.
         Your task is to write a single line of Javascript code to filter a data row.
         The row object matches the CSV columns.
         
         Available Columns: ${JSON.stringify(columns)}
         
         Rules:
-        1. OUTPUT RAW CODE ONLY. No intro, no outro, no markdown.
-        2. RETURN AN ARROW FUNCTION: (row) => ...
-        3. ALWAYS USE BRACKET NOTATION: row['Column Name']
-        4. HANDLE MISSING VALUES:
+        1. NEVER use introductory phrases (e.g., "Sure," "Here is," "I can help with that").
+        2. NEVER use concluding phrases (e.g., "Hope this helps," "Let me know if you need more").
+        3. OUTPUT RAW CODE ONLY in direct Markdown format.
+        4. RETURN AN ARROW FUNCTION: (row) => ...
+        5. ALWAYS USE BRACKET NOTATION: row['Column Name']
+        6. HANDLE MISSING VALUES:
            - In this data, missing values are exactly the string "[MISSING]"
            - To find missing rows: row['Col'] === '[MISSING]'
-           - To find present rows: row['Col'] !== '[MISSING]'
-        5. STRING MATCHING:
+        7. STRING MATCHING:
            - Always use .trim() and .toLowerCase()
            - Example: row['Status'] && row['Status'].trim().toLowerCase() === 'active'
         
@@ -100,7 +104,11 @@ export const useWoznyLLM = create<LLMState>((set, get) => ({
         Output: (row) => row['City'] && row['City'] !== '[MISSING]' && row['City'].trim().toLowerCase() === 'new york'
         `;
 
-        const response = await generateText(userQuery, systemPrompt);
+        const response = await generateText(userQuery, systemPrompt, {
+            temperature: 0.0, // Minimum randomness
+            top_p: 1.0,       // Consider all likely options, but temperature 0.0 will override
+            max_tokens: 256,  // Hard limit on output length
+        });
 
         // --- Robust Code Extraction Strategy ---
         // 1. Try to find a code block first (```javascript ... ```)
@@ -122,10 +130,11 @@ export const useWoznyLLM = create<LLMState>((set, get) => ({
             }
         }
 
-        // Cleaning: Remove "const rows = ..." or "console.log" if the model hallucinates a whole script inside the block
-        // We only want the function body or the arrow function expression.
-        // Actually, if it returns a full script, we might be in trouble unless we parse it.
-        // Let's assume the prompt "RETURN AN ARROW FUNCTION" works inside the code block at least.
+        // Additional cleanup for "trailing characters" from the AI writing a full script like .filter(...)
+        // If the code ends with ");", it likely belongs to a wrapper function.
+        // We only want the Arrow Function expression.
+        // This is hard to regex perfectly without an AST.
+        // But we can try to trust the prompt + temp=0.0 first.
 
         return code;
     },

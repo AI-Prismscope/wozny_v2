@@ -138,3 +138,11 @@
 **Root Cause Analysis:** `The model persistently ignored "Output Raw Code Only" instructions and returned conversational wrappers ("Here is the code...", "const rows = ..."). This caused the manual string trimming to fail.`
 **Solution Implemented:** `Implemented "Defensive Engineering" (Regex Extraction). instead of relying on the prompt, the code now uses Regex to scan for markdown code blocks (backticks) or arrow function signatures ((row) => ...), discarding all surrounding text.`
 **Refactoring Action:** `Hardened result parsing in useWoznyLLM.ts.`
+---
+**Timestamp:** `2026-01-26 23:30:00`
+**Category:** `EVAL`
+**Status:** `SOLVED`
+**Error Message:** `Model ignoring strict prompts (Chattiness/Creativity)`
+**Root Cause Analysis:** `We were using default inference parameters (likely Temperature > 0.7), which physically forced the model to be "creative" and violate negative constraints.`
+**Solution Implemented:** `Implemented 'Inference Parameter Tuning'. Updated generateText to accept an options object. Hardcoded 'temperature: 0.0' and 'max_tokens: 256' for the code generation task to enforce determinism.`
+**Refactoring Action:** `Updated LLM Core to support variable inference parameters.`

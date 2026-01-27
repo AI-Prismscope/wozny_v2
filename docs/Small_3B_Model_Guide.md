@@ -90,3 +90,23 @@ Small models struggle with negative constraints ("Do NOT do X"). They often focu
 3.  [ ] **Robustness:** Does the prompt enforce `.trim()` and `.toLowerCase()`?
 4.  [ ] **Syntax Guardrails:** Does it enforce `['Bracket Notation']`?
 5.  [ ] **Defensive Parser:** Is the client code ready for Markdown/Chatty responses?
+
+## 7. The Physics of "Boring": Inference Parameters
+Even with a perfect prompt, a small model set to "Creative Mode" (Temperature 0.7+) will disobey you to be "helpful" or "varied". You MUST control the physics of generation.
+
+### The "Execution Engine" Config
+For code generation tasks where only ONE answer is correct, use this configuration:
+
+```javascript
+const params = {
+  temperature: 0.0,      // DETERMINISTIC. Removes "creative" fluff.
+  top_p: 0.1,           // OPTIONAL: Forces focus on top 10% probability tokens.
+  frequency_penalty: 0, // Don't penalize repetition (code needs repetition).
+  presence_penalty: 0,  // Don't force new topics.
+  max_tokens: 256,      // HARD STOP. Prevents long explanations/test scripts.
+};
+```
+
+**Why it works:**
+*   **Temperature 0.0:** The model picks the #1 most likely token every time. If your prompt says "OUTPUT RAW CODE", the most likely token is `(`, not "Sure".
+*   **Max Tokens:** Physically prevents the model from writing a novel after the code.
