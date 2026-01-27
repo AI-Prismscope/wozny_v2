@@ -146,3 +146,10 @@
 **Root Cause Analysis:** `We were using default inference parameters (likely Temperature > 0.7), which physically forced the model to be "creative" and violate negative constraints.`
 **Solution Implemented:** `Implemented 'Inference Parameter Tuning'. Updated generateText to accept an options object. Hardcoded 'temperature: 0.0' and 'max_tokens: 256' for the code generation task to enforce determinism.`
 **Refactoring Action:** `Updated LLM Core to support variable inference parameters.`
+---
+**Timestamp:** `2026-01-27 15:30:00`
+**Category:** `REFACTOR`
+**Status:** `CLEANUP`
+**Action:** `Removed Defensive Regex from useWoznyLLM.ts`
+**Rationale:** `With Temperature 0.0 and correct Prompting now enforcing strict output, the complex regex fallback was dead code. Replaced with simple Markdown stripper for cleaner maintenance.`
+**Result:** `Simplified codebase while maintaining robustness.`

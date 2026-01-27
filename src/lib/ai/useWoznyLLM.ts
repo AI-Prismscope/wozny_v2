@@ -110,33 +110,15 @@ export const useWoznyLLM = create<LLMState>((set, get) => ({
             max_tokens: 256,  // Hard limit on output length
         });
 
-        // --- Robust Code Extraction Strategy ---
-        // 1. Try to find a code block first (```javascript ... ```)
-        // 2. Fallback: Try to find an arrow function signature (row) => ...
-
         let code = response.trim();
 
-        const codeBlockRegex = /```(?:javascript|js)?\s*([\s\S]*?)```/i;
-        const arrowFuncRegex = /(\(row\)\s*=>\s*[\s\S]*)/i; // Naive but often works for simple one-liners
-
-        const codeBlockMatch = code.match(codeBlockRegex);
-        if (codeBlockMatch && codeBlockMatch[1]) {
-            code = codeBlockMatch[1].trim();
-        } else {
-            // No code block? Look for the arrow function anywhere in the text
-            const arrowMatch = code.match(arrowFuncRegex);
-            if (arrowMatch && arrowMatch[1]) {
-                code = arrowMatch[1].trim();
-            }
+        // Simple markdown cleanup: Remove backticks if the model ignores the "no markdown" rule
+        // (Even with temp=0.0, some models are hard-wired to use markdown)
+        if (code.startsWith('```')) {
+            code = code.replace(/^```(javascript|js)?\s*/i, '').replace(/\s*```$/, '');
         }
 
-        // Additional cleanup for "trailing characters" from the AI writing a full script like .filter(...)
-        // If the code ends with ");", it likely belongs to a wrapper function.
-        // We only want the Arrow Function expression.
-        // This is hard to regex perfectly without an AST.
-        // But we can try to trust the prompt + temp=0.0 first.
-
-        return code;
+        return code.trim();
     },
 
     standardizeValues: async (uniqueValues) => {
