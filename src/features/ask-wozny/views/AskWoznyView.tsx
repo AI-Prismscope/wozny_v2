@@ -121,7 +121,7 @@ export const AskWoznyView = () => {
                             <Wand2 className="w-5 h-5 text-purple-600" />
                             Ask Wozny
                         </h2>
-                        <p className="text-xs text-neutral-500">Natural Language Data Tools</p>
+                        <p className="text-xs text-neutral-500">Natural Language Filter Tool</p>
                     </div>
 
                     {/* AI Search Bar */}

@@ -77,32 +77,31 @@ export const useWoznyLLM = create<LLMState>((set, get) => ({
     generateFilterCode: async (columns, userQuery) => {
         const { generateText } = get();
 
-        const systemPrompt = `You are a precise, technical execution engine.
-        Your task is to write a single line of Javascript code to filter a data row.
-        The row object matches the CSV columns.
+        const systemPrompt = `You are a JavaScript Filter Generator.
+        CORE DATA RULE:
+        - All empty/null/blank values are stored as the literal string: "[MISSING]"
+        - You MUST use strict equality: === "[MISSING]"
         
-        Available Columns: ${JSON.stringify(columns)}
+        MAPPING RULES:
+        - If user says 'missing' or 'empty' or 'blank', write === '[MISSING]'
+        - If user says "has", "present", "not missing", use: !== "[MISSING]"
         
-        Rules:
-        1. NEVER use introductory phrases (e.g., "Sure," "Here is," "I can help with that").
-        2. NEVER use concluding phrases (e.g., "Hope this helps," "Let me know if you need more").
-        3. OUTPUT RAW CODE ONLY in direct Markdown format.
-        4. RETURN AN ARROW FUNCTION: (row) => ...
-        5. ALWAYS USE BRACKET NOTATION: row['Column Name']
-        6. HANDLE MISSING VALUES:
-           - In this data, missing values are exactly the string "[MISSING]"
-           - To find MISSING rows: row['Col'] === '[MISSING]'
-           - To find PRESENT rows (not missing): row['Col'] !== '[MISSING]'
-        7. STRING MATCHING:
-           - Always use .trim() and .toLowerCase()
-           - Example: row['Status'] && row['Status'].trim().toLowerCase() === 'active'
+        COLUMN MAPPING:
+        - Use the EXACT column name provided. 
+        - Example: "Certification_Renewal_Date" -> row["Certification_Renewal_Date"]
+        - If user says "Column N" (number), use Index Mapping: Object.values(row)[N-1]
+        - Example: "Column 4" -> Object.values(row)[3]
         
-        Examples:
-        Input: "Show rows where email is missing"
-        Output: (row) => row['Email'] === '[MISSING]'
-
-        Input: "Show rows where City is New York"
-        Output: (row) => row['City'] && row['City'] !== '[MISSING]' && row['City'].trim().toLowerCase() === 'new york'
+        OUTPUT FORMAT:
+        - Return ONLY a valid JavaScript arrow function.
+        - NO explanation. NO preamble.
+        
+        EXAMPLES:
+        Input: "show missing in Certification_Renewal_Date"
+        Output: (row) => row["Certification_Renewal_Date"] === "[MISSING]"
+        
+        Input: "missing in column 4"
+        Output: (row) => Object.values(row)[3] === "[MISSING]"
 
         Input: "Show rows that have a Phone Number"
         Output: (row) => row['Phone'] !== '[MISSING]'
