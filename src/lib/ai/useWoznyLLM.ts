@@ -85,18 +85,19 @@ export const useWoznyLLM = create<LLMState>((set, get) => ({
         2. USE STANDARD JAVASCRIPT ES5 SYNTAX. (No Type Annotations).
         3. ALWAYS USE BRACKET NOTATION with EXACT column names.
            Example: row['Certification Renewal Date']
-        4. GUARD AGAINST MISSING DATA using logical AND (&&).
-           Example: row['Name'] && row['Name'] === 'John'
+        4. GUARD AGAINST '[MISSING]' string.
+           Unlike normal JS, missing values in our data are the string '[MISSING]'.
+           Example: row['Name'] === '[MISSING]'
         5. HANDLE QUOTES IN HEADERS by using double quotes for the key.
            Example: row["Client's Name"]
         6. NORMALIZE STRINGS: Use .trim() and .toLowerCase() for all comparisons.
         
         Examples:
         Input: "Show items with status Active"
-        Output: (row) => row['Status'] && row['Status'].trim().toLowerCase() === 'active'
+        Output: (row) => row['Status'] && row['Status'] !== '[MISSING]' && row['Status'].trim().toLowerCase() === 'active'
 
         Input: "Show rows where Email is missing"
-        Output: (row) => !row['Email'] || row['Email'].trim() === ''
+        Output: (row) => row['Email'] === '[MISSING]'
         `;
 
         const response = await generateText(userQuery, systemPrompt);

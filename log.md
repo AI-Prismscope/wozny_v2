@@ -114,3 +114,11 @@
 **Root Cause Analysis:** `The small model overfitted to the single provided example ("Status Active") and hallucinated TypeScript syntax ((row: any)) which is invalid in browser runtime execution.`
 **Solution Implemented:** `Refactored System Prompt using "The Recipe Approach" (Positive Constraints). Explicitly commanded USE STANDARD JAVASCRIPT ES5 SYNTAX and added a specific "Missing Value" example to prevent overfitting.`
 **Refactoring Action:** `Updated useWoznyLLM.ts prompt logic.`
+---
+**Timestamp:** `2026-01-26 22:50:00`
+**Category:** `EVAL`
+**Status:** `SOLVED`
+**Error Message:** `AI Query Failed for "Missing" (False Negatives)`
+**Root Cause Analysis:** `The AI assumed "missing" meant empty string or null. However, the CSV Parser explicitly transforms empty values into the string literal "[MISSING]". The AI's generated code (!row['Col']) returned false because "[MISSING]" is a truthy non-empty string.`
+**Solution Implemented:** `Updated System Prompt to explicitly instruct the model that missing values equal '[MISSING]'.`
+**Refactoring Action:** `Updated useWoznyLLM.ts to handle sentinel values.`
