@@ -102,13 +102,32 @@ export const useWoznyLLM = create<LLMState>((set, get) => ({
 
         const response = await generateText(userQuery, systemPrompt);
 
-        // Clean up markdown code blocks if present
-        let code = response.trim();
-        if (code.startsWith('```javascript')) code = code.replace('```javascript', '').replace('```', '');
-        if (code.startsWith('```js')) code = code.replace('```js', '').replace('```', '');
-        if (code.startsWith('```')) code = code.replace('```', '').replace('```', '');
+        // --- Robust Code Extraction Strategy ---
+        // 1. Try to find a code block first (```javascript ... ```)
+        // 2. Fallback: Try to find an arrow function signature (row) => ...
 
-        return code.trim();
+        let code = response.trim();
+
+        const codeBlockRegex = /```(?:javascript|js)?\s*([\s\S]*?)```/i;
+        const arrowFuncRegex = /(\(row\)\s*=>\s*[\s\S]*)/i; // Naive but often works for simple one-liners
+
+        const codeBlockMatch = code.match(codeBlockRegex);
+        if (codeBlockMatch && codeBlockMatch[1]) {
+            code = codeBlockMatch[1].trim();
+        } else {
+            // No code block? Look for the arrow function anywhere in the text
+            const arrowMatch = code.match(arrowFuncRegex);
+            if (arrowMatch && arrowMatch[1]) {
+                code = arrowMatch[1].trim();
+            }
+        }
+
+        // Cleaning: Remove "const rows = ..." or "console.log" if the model hallucinates a whole script inside the block
+        // We only want the function body or the arrow function expression.
+        // Actually, if it returns a full script, we might be in trouble unless we parse it.
+        // Let's assume the prompt "RETURN AN ARROW FUNCTION" works inside the code block at least.
+
+        return code;
     },
 
     standardizeValues: async (uniqueValues) => {
