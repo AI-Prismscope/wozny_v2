@@ -3,9 +3,8 @@
 import React, { useState, useMemo } from 'react';
 import { useWoznyStore, RowData, AnalysisIssue } from '@/lib/store/useWoznyStore';
 import { DataGrid } from '@/shared/DataGrid';
-import { FileText, AlertTriangle, Ban, Layers, ArrowLeft, Download } from 'lucide-react';
+import { FileText, AlertTriangle, Ban, Layers } from 'lucide-react';
 import clsx from 'clsx';
-import { downloadCleanCsv } from '@/lib/export-utils';
 
 type FilterType = 'ALL' | 'MISSING' | 'FORMAT' | 'DUPLICATE' | 'USER_SELECTION';
 
@@ -209,23 +208,7 @@ export const WorkshopView = () => {
                     />
                 </nav>
 
-                <div className="p-4 border-t border-neutral-200 dark:border-neutral-800 space-y-2">
-                    <button
-                        onClick={() => downloadCleanCsv(rows, visibleColumns)}
-                        className="w-full flex items-center justify-center gap-2 text-sm font-medium bg-neutral-900 dark:bg-white text-white dark:text-black py-2.5 rounded-lg hover:opacity-90 transition-all shadow-sm"
-                    >
-                        <Download className="w-4 h-4" />
-                        Export Clean Data
-                    </button>
 
-                    <button
-                        onClick={() => setActiveTab('report')}
-                        className="flex items-center justify-center w-full gap-2 text-sm text-neutral-500 hover:text-neutral-900 transition-colors py-2"
-                    >
-                        <ArrowLeft className="w-4 h-4" />
-                        Back to Report
-                    </button>
-                </div>
             </div>
 
             {/* Main Grid Area */}
@@ -311,6 +294,9 @@ export const WorkshopView = () => {
                         className="shadow-sm border border-neutral-200 dark:border-neutral-800"
                         onCellClick={filter === 'FORMAT' || filter === 'DUPLICATE' ? undefined : handleCellUpdate}
                         onDeleteRow={filter === 'DUPLICATE' || filter === 'MISSING' ? handleRemoveRow : undefined}
+                        // Column Management
+                        ignoredColumns={ignoredColumns}
+                        onToggleIgnore={useWoznyStore((state) => state.toggleIgnoreColumn)}
                     />
                 </div>
             </div>

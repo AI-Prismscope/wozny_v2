@@ -93,7 +93,13 @@ export const DiffView = () => {
                         Cleaned Output
                     </div>
                     <div className="flex-1 overflow-hidden">
-                        <DataGrid ref={cleanRef} data={rows} columns={visibleColumns} />
+                        <DataGrid
+                            ref={cleanRef}
+                            data={rows}
+                            columns={visibleColumns}
+                            ignoredColumns={ignoredColumns}
+                            onToggleIgnore={useWoznyStore((state) => state.toggleIgnoreColumn)}
+                        />
                     </div>
                 </div>
 
@@ -108,7 +114,13 @@ export const DiffView = () => {
                         Original Source
                     </div>
                     <div className="flex-1 overflow-hidden opacity-75">
-                        <DataGrid ref={sourceRef} data={rawRows} columns={visibleColumns} />
+                        <DataGrid
+                            ref={sourceRef}
+                            data={rawRows}
+                            columns={visibleColumns}
+                            ignoredColumns={ignoredColumns}
+                            onToggleIgnore={useWoznyStore((state) => state.toggleIgnoreColumn)}
+                        />
                     </div>
                 </div>
             </div>

@@ -5,7 +5,7 @@ import { useVirtualizer } from '@tanstack/react-virtual';
 import { RowData } from '@/lib/store/useWoznyStore';
 import clsx from 'clsx';
 
-import { Trash2 } from 'lucide-react';
+import { Trash2, Eye, EyeOff } from 'lucide-react';
 
 interface DataGridProps {
     data: RowData[];
@@ -15,9 +15,15 @@ interface DataGridProps {
     onDeleteRow?: (rowIndex: number) => void;
     issueMap?: Record<number, Record<string, string>>;
     rowStateMap?: Record<number, 'DUPLICATE' | 'MULTIPLE' | 'Loading'>;
+    // Column Management
+    ignoredColumns?: string[];
+    onToggleIgnore?: (col: string) => void;
 }
 
-export const DataGrid = React.forwardRef<HTMLDivElement, DataGridProps>(({ data, columns, className, onCellClick, onDeleteRow, issueMap, rowStateMap }, ref) => {
+export const DataGrid = React.forwardRef<HTMLDivElement, DataGridProps>(({
+    data, columns, className, onCellClick, onDeleteRow, issueMap, rowStateMap,
+    ignoredColumns = [], onToggleIgnore
+}, ref) => {
     const defaultRef = useRef<HTMLDivElement>(null);
     const parentRef = (ref as React.RefObject<HTMLDivElement>) || defaultRef;
 
@@ -48,11 +54,33 @@ export const DataGrid = React.forwardRef<HTMLDivElement, DataGridProps>(({ data,
                     style={{ height: HEADER_HEIGHT }}
                     className="sticky top-0 z-10 flex bg-neutral-100 dark:bg-neutral-900 border-b border-neutral-200 dark:border-neutral-700 font-medium text-neutral-500 dark:text-neutral-400 text-sm box-border"
                 >
-                    {columns.map((col) => (
-                        <div key={col} className="p-3 w-48 shrink-0 truncate border-r border-neutral-200 dark:border-neutral-800 last:border-r-0 flex items-center">
-                            {col}
-                        </div>
-                    ))}
+                    {columns.map((col) => {
+                        const isIgnored = ignoredColumns.includes(col);
+                        return (
+                            <div key={col} className="w-48 shrink-0 border-r border-neutral-200 dark:border-neutral-800 last:border-r-0 flex items-center justify-between px-3 group">
+                                <span className={clsx("truncate select-none", isIgnored && "opacity-50 line-through")}>
+                                    {col}
+                                </span>
+
+                                {onToggleIgnore && (
+                                    <button
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            onToggleIgnore(col);
+                                        }}
+                                        className="text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-200 p-1 rounded-full hover:bg-neutral-200 dark:hover:bg-neutral-800 transition-all opacity-0 group-hover:opacity-100 focus:opacity-100"
+                                        title={isIgnored ? "Restore Column" : "Ignore Column"}
+                                    >
+                                        {isIgnored ? (
+                                            <EyeOff className="w-4 h-4 text-red-500" />
+                                        ) : (
+                                            <Eye className="w-4 h-4" />
+                                        )}
+                                    </button>
+                                )}
+                            </div>
+                        );
+                    })}
                     {onDeleteRow && (
                         <div className="p-3 w-12 shrink-0 border-l border-neutral-200 dark:border-neutral-800 flex items-center justify-center sticky right-0 bg-neutral-100 dark:bg-neutral-900">
                             <span className="sr-only">Actions</span>
