@@ -175,3 +175,17 @@
 **Action:** `Refined Small Model Guide Philosophy`
 **Details:** `Replaced 'Recipe Approach' with 'Pattern-Based Engineering' (Few-Shot Prompting). This reflects our finding that 1B models respond better to pattern completion than rule compliance.`
 **Impact:** `Documentation now aligns with the V3.0 Prompt Architecture.`
+---
+**Timestamp:** `2026-01-28 15:30:00`
+**Category:** `PERFORMANCE`
+**Status:** `AUDIT_COMPLETE`
+**Action:** `Performance & Architecture Review`
+**Details:** `Confirmed NO heavy AI loop exists. Analysis is pure deterministic JS. Bottleneck is Main Thread UI blocking during initial upload sync analysis.`
+**Impact:** `Confirmed architecture supports >20k rows logic-wise, but locked to 5k hard limit for UI responsiveness per user request.`
+---
+**Timestamp:** `2026-01-28 15:45:00`
+**Category:** `UI_UX`
+**Status:** `PUBLISHED`
+**Action:** `Added Dataset Dimensions to Report`
+**Details:** `Added 'X Rows x Y Columns' badge to Executive Report header. Implemented Hard Blocking for uploads >5000 rows with clear error messaging.`
+**Impact:** `Improved user transparency regarding dataset size and system limits.`

@@ -65,7 +65,12 @@ export const ReportView = () => {
             <div className="flex-none flex items-center justify-between mb-6">
                 <div>
                     <h1 className="text-3xl font-bold text-neutral-900 dark:text-white">Executive Report</h1>
-                    <p className="text-neutral-500 dark:text-neutral-400">Analysis for <span className="text-neutral-700 dark:text-neutral-200 font-mono">{fileName}</span></p>
+                    <div className="flex items-center gap-3">
+                        <p className="text-neutral-500 dark:text-neutral-400">Analysis for <span className="text-neutral-700 dark:text-neutral-200 font-mono">{fileName}</span></p>
+                        <span className="px-2 py-0.5 rounded text-xs font-medium bg-neutral-100 dark:bg-neutral-800 text-neutral-600 dark:text-neutral-400 border border-neutral-200 dark:border-neutral-700">
+                            {rows.length.toLocaleString()} Rows × {Object.keys(rows[0] || {}).length} Columns
+                        </span>
+                    </div>
                 </div>
                 <div className="flex items-center gap-4">
                     <div className="text-right">

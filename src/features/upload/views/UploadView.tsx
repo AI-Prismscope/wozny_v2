@@ -22,11 +22,13 @@ export const UploadView = () => {
         setError(null);
         try {
             const { data, columns } = await parseCsvFile(file);
+
+            // Hard Limit: 5,000 Rows
             if (data.length > 5000) {
-                // Warning or blocking? Spec says "Max 5000 rows approx".
-                // We will allow it but warn.
-                console.warn('Large file detected');
+                setError(`File too large (${data.length} rows). Maximum allowed is 5,000 rows to ensure browser performance.`);
+                return; // Stop execution
             }
+
             setCsvData(file.name, data, columns);
         } catch (e) {
             setError('Failed to parse CSV. Check file format.');
@@ -109,6 +111,8 @@ export const UploadView = () => {
                         {error}
                     </div>
                 )}
+
+
             </div>
         </div>
     );
