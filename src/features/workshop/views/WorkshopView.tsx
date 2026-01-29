@@ -13,11 +13,27 @@ export const WorkshopView = () => {
     const rows = useWoznyStore((state) => state.rows);
     const columns = useWoznyStore((state) => state.columns);
     const issues = useWoznyStore((state) => state.issues);
+    const ignoredColumns = useWoznyStore((state) => state.ignoredColumns);
+    const showHiddenColumns = useWoznyStore((state) => state.showHiddenColumns);
+
     const setActiveTab = useWoznyStore((state) => state.setActiveTab);
     const updateCell = useWoznyStore((state) => state.updateCell);
     const removeRow = useWoznyStore((state) => state.removeRow);
     const resolveDuplicates = useWoznyStore((state) => state.resolveDuplicates);
     const autoFormat = useWoznyStore((state) => state.autoFormat);
+
+    // Filter Logic:
+    // If showHiddenColumns is FALSE, we hide ignored columns from the View entirely.
+    const visibleColumns = useMemo(() => {
+        if (showHiddenColumns) return columns;
+        return columns.filter(c => !ignoredColumns.includes(c));
+    }, [columns, ignoredColumns, showHiddenColumns]);
+
+    // Also filter issues to match visible columns
+    const visibleIssues = useMemo(() => {
+        if (showHiddenColumns) return issues;
+        return issues.filter(i => !ignoredColumns.includes(i.column));
+    }, [issues, ignoredColumns, showHiddenColumns]);
 
     // Bulk Edit State
     const userSelection = useWoznyStore((state) => state.userSelection);
@@ -35,14 +51,15 @@ export const WorkshopView = () => {
         removeRow(globalIndex);
     };
 
-    // 1. Calculate Counts
+    // 1. Calculate Counts (Using Visible Issues)
+    // NOTE: counts.ALL is unrelated to columns, it's rows.
     const counts = useMemo(() => ({
         ALL: rows.length,
-        MISSING: issues.filter(i => i.issueType === 'MISSING').length,
-        FORMAT: issues.filter(i => i.issueType === 'FORMAT').length,
-        DUPLICATE: issues.filter(i => i.issueType === 'DUPLICATE').length,
+        MISSING: visibleIssues.filter(i => i.issueType === 'MISSING').length,
+        FORMAT: visibleIssues.filter(i => i.issueType === 'FORMAT').length,
+        DUPLICATE: visibleIssues.filter(i => i.issueType === 'DUPLICATE').length,
         USER_SELECTION: userSelection.length
-    }), [rows.length, issues, userSelection.length]);
+    }), [rows.length, visibleIssues, userSelection.length]);
 
     // 2. Filter Rows & Pre-compute Highlights
     const { filteredRows, issueMap, rowStateMap, globalIndexMap } = useMemo(() => {
@@ -53,7 +70,7 @@ export const WorkshopView = () => {
                 relevantRowIds = new Set(userSelection);
             } else {
                 relevantRowIds = new Set(
-                    issues.filter(i => i.issueType === filter).map(i => i.rowId)
+                    visibleIssues.filter(i => i.issueType === filter).map(i => i.rowId)
                 );
             }
         }
@@ -79,13 +96,17 @@ export const WorkshopView = () => {
             indexMap.push(globalIndex);
 
             // Compute Highlight State for this View Row
-            const rowIssues = issues.filter(i => i.rowId === globalIndex);
+            // Use visibleIssues here so ignored column highlights disappear
+            const rowIssues = visibleIssues.filter(i => i.rowId === globalIndex);
             if (rowIssues.length > 0) {
                 map[viewIndex] = {};
                 rowIssues.forEach(issue => {
                     // Only show issues relevant to current view (or all if ALL)
-                    if (filter === 'ALL' || issue.issueType === filter) {
-                        map[viewIndex][issue.column] = issue.issueType;
+                    // AND ensure the column is actually visible (redundant check but safe)
+                    if (visibleColumns.includes(issue.column)) {
+                        if (filter === 'ALL' || issue.issueType === filter) {
+                            map[viewIndex][issue.column] = issue.issueType;
+                        }
                     }
                 });
 
@@ -99,7 +120,7 @@ export const WorkshopView = () => {
         });
 
         return { filteredRows: finalRows, issueMap: map, rowStateMap: stateMap, globalIndexMap: indexMap };
-    }, [rows, issues, filter]);
+    }, [rows, visibleIssues, filter, visibleColumns]);
 
     // 3. Editing State
     const [editingCell, setEditingCell] = useState<{ globalRowIndex: number, colId: string, currentValue: string } | null>(null);
@@ -190,7 +211,7 @@ export const WorkshopView = () => {
 
                 <div className="p-4 border-t border-neutral-200 dark:border-neutral-800 space-y-2">
                     <button
-                        onClick={() => downloadCleanCsv(rows, columns)}
+                        onClick={() => downloadCleanCsv(rows, visibleColumns)}
                         className="w-full flex items-center justify-center gap-2 text-sm font-medium bg-neutral-900 dark:bg-white text-white dark:text-black py-2.5 rounded-lg hover:opacity-90 transition-all shadow-sm"
                     >
                         <Download className="w-4 h-4" />
@@ -227,7 +248,7 @@ export const WorkshopView = () => {
                                     value={bulkCol}
                                 >
                                     <option value="">Select Column...</option>
-                                    {columns.map(c => <option key={c} value={c}>{c}</option>)}
+                                    {visibleColumns.map(c => <option key={c} value={c}>{c}</option>)}
                                 </select>
 
                                 <input
@@ -284,7 +305,7 @@ export const WorkshopView = () => {
                 <div className="flex-1 overflow-hidden p-6">
                     <DataGrid
                         data={filteredRows}
-                        columns={columns}
+                        columns={visibleColumns}
                         issueMap={issueMap}
                         rowStateMap={rowStateMap}
                         className="shadow-sm border border-neutral-200 dark:border-neutral-800"

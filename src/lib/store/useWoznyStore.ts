@@ -28,6 +28,7 @@ export interface WoznyState {
     // User Selection State
     userSelection: number[];
     ignoredColumns: string[]; // NEW: Persist ignored columns
+    showHiddenColumns: boolean; // NEW: Global visibility toggle
 
     // Actions
     setCsvData: (fileName: string, data: RowData[], columns: string[]) => void;
@@ -38,7 +39,8 @@ export interface WoznyState {
     autoFormat: () => void;
     removeRow: (rowIndex: number) => void;
     resolveDuplicates: () => void;
-    toggleIgnoreColumn: (columnId: string) => void; // NEW: Toggle action
+    toggleIgnoreColumn: (columnId: string) => void;
+    toggleShowHiddenColumns: () => void; // NEW: Toggle action
 
     // Bulk Actions
     setUserSelection: (indices: number[]) => void;
@@ -57,6 +59,7 @@ export const useWoznyStore = create<WoznyState>()(
         isAnalyzing: false,
         userSelection: [],
         ignoredColumns: [],
+        showHiddenColumns: false,
 
 
 
@@ -177,6 +180,11 @@ export const useWoznyStore = create<WoznyState>()(
                 } else {
                     state.ignoredColumns.push(columnId);
                 }
+            }),
+
+        toggleShowHiddenColumns: () =>
+            set((state) => {
+                state.showHiddenColumns = !state.showHiddenColumns;
             }),
 
         // --- NEW: User Selection & Bulk Edit ---
