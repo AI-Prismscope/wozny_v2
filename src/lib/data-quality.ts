@@ -239,7 +239,8 @@ export const autoFixRow = (row: RowData, columns: string[]): RowData => {
             lowerCol.includes('address') ||
             lowerCol.includes('city') ||
             lowerCol.includes('street') ||
-            lowerCol.includes('company')
+            lowerCol.includes('company') ||
+            lowerCol.includes('borough')
         ) {
             // Only apply if it looks like text (not numbers like "123")
             // Although address starts with numbers. Title Case handles "123 Main St" correctly.

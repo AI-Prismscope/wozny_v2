@@ -189,3 +189,10 @@
 **Action:** `Added Dataset Dimensions to Report`
 **Details:** `Added 'X Rows x Y Columns' badge to Executive Report header. Implemented Hard Blocking for uploads >5000 rows with clear error messaging.`
 **Impact:** `Improved user transparency regarding dataset size and system limits.`
+---
+**Timestamp:** `2026-01-28 16:00:00`
+**Category:** `LOGIC_FIX`
+**Status:** `SOLVED`
+**Action:** `Updated Auto-Fix Dictionary`
+**Details:** `Added 'borough' to the Title Case whitelist in data-quality.ts.`
+**Impact:** `Auto-fix now correctly normalizes Borough names (e.g., 'brooklyn' -> 'Brooklyn').`
