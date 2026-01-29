@@ -59,7 +59,9 @@ To maintain data privacy and accuracy:
 
 ### **4. Export & Trust**
 *   **Clean Export:** One-click download of the fixed dataset.
-*   **Logic:** The export always reflects the current *live* state of the Workshop.
+*   **Global Visibility (Ignore = Hide):** Users can "Ignore" specific columns to hide them from the Workshop, Issues Sidebar, and the Exported CSV.
+    *   *Toggle:* An "Eye" icon in the header allows users to show/hide these columns for verification.
+*   **Logic:** The export always reflects the current *live* state of the Workshop (Visible Columns Only).
 *   **Confidence:** The user knows exactly what changed because they authorized every Bulk Edit.
 
 ---

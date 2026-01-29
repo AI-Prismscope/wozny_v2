@@ -6,13 +6,23 @@ import { DataGrid } from '@/shared/DataGrid';
 import { Download, ArrowRight } from 'lucide-react';
 import Papa from 'papaparse';
 import { EmptyState } from '@/shared/EmptyState';
+import { downloadCleanCsv } from '@/lib/export-utils';
 
 export const DiffView = () => {
     const rawRows = useWoznyStore((state) => state.rawRows);
     const rows = useWoznyStore((state) => state.rows);
     const columns = useWoznyStore((state) => state.columns);
+    const ignoredColumns = useWoznyStore((state) => state.ignoredColumns);
+    const showHiddenColumns = useWoznyStore((state) => state.showHiddenColumns);
     const fileName = useWoznyStore((state) => state.fileName);
     const setActiveTab = useWoznyStore((state) => state.setActiveTab);
+
+    // Filter Logic:
+    // If showHiddenColumns is FALSE, we hide ignored columns from the View entirely.
+    const visibleColumns = React.useMemo(() => {
+        if (showHiddenColumns) return columns;
+        return columns.filter(c => !ignoredColumns.includes(c));
+    }, [columns, ignoredColumns, showHiddenColumns]);
 
     if (rows.length === 0) {
         return <EmptyState description="Upload a CSV file to export results." />;
@@ -55,12 +65,7 @@ export const DiffView = () => {
     }, [rows]); // Re-attach if data changes (e.g. upload new file)
 
     const handleExport = () => {
-        const csv = Papa.unparse(rows);
-        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-        const link = document.createElement('a');
-        link.href = URL.createObjectURL(blob);
-        link.download = `Cleaned_${fileName || 'data.csv'}`;
-        link.click();
+        downloadCleanCsv(rows, visibleColumns, fileName || 'clean_data');
     };
 
     return (
@@ -82,28 +87,28 @@ export const DiffView = () => {
 
             {/* Split View (Top/Bottom) */}
             <div className="flex-1 flex flex-col overflow-hidden">
-                {/* Original */}
+                {/* Cleaned (Now Top) */}
                 <div className="flex-1 flex flex-col border-b border-neutral-200 dark:border-neutral-800 min-h-0">
-                    <div className="p-2 bg-neutral-100 dark:bg-neutral-900/50 text-center text-xs font-mono text-neutral-500 uppercase tracking-widest border-b border-neutral-200 dark:border-neutral-800">
-                        Original Source
-                    </div>
-                    <div className="flex-1 overflow-hidden opacity-75">
-                        <DataGrid ref={sourceRef} data={rawRows} columns={columns} />
-                    </div>
-                </div>
-
-                {/* Arrow Divider */}
-                <div className="h-8 bg-white dark:bg-neutral-950 flex items-center justify-center border-b border-neutral-200 dark:border-neutral-800 z-10">
-                    <ArrowRight className="text-neutral-400 dark:text-neutral-700 rotate-90" />
-                </div>
-
-                {/* Cleaned */}
-                <div className="flex-1 flex flex-col min-h-0">
-                    <div className="p-2 bg-blue-50 dark:bg-blue-900/10 text-center text-xs font-mono text-blue-600 dark:text-blue-400 uppercase tracking-widest border-b border-neutral-200 dark:border-neutral-800">
+                    <div className="p-3 bg-blue-50 dark:bg-blue-900/20 text-center text-sm font-bold text-blue-800 dark:text-blue-200 uppercase tracking-widest border-b border-blue-200 dark:border-blue-800 shadow-sm z-10">
                         Cleaned Output
                     </div>
                     <div className="flex-1 overflow-hidden">
-                        <DataGrid ref={cleanRef} data={rows} columns={columns} />
+                        <DataGrid ref={cleanRef} data={rows} columns={visibleColumns} />
+                    </div>
+                </div>
+
+                {/* Arrow Divider (Points UP to Cleaned) */}
+                <div className="h-8 bg-white dark:bg-neutral-950 flex items-center justify-center border-b border-neutral-200 dark:border-neutral-800 z-10">
+                    <ArrowRight className="text-neutral-400 dark:text-neutral-700 -rotate-90" />
+                </div>
+
+                {/* Original (Now Bottom) */}
+                <div className="flex-1 flex flex-col min-h-0">
+                    <div className="p-3 bg-neutral-100 dark:bg-neutral-900/50 text-center text-sm font-bold text-neutral-800 dark:text-neutral-200 uppercase tracking-widest border-b border-neutral-200 dark:border-neutral-800 shadow-sm z-10">
+                        Original Source
+                    </div>
+                    <div className="flex-1 overflow-hidden opacity-75">
+                        <DataGrid ref={sourceRef} data={rawRows} columns={visibleColumns} />
                     </div>
                 </div>
             </div>

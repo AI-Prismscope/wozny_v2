@@ -196,3 +196,20 @@
 **Action:** `Updated Auto-Fix Dictionary`
 **Details:** `Added 'borough' to the Title Case whitelist in data-quality.ts.`
 **Impact:** `Auto-fix now correctly normalizes Borough names (e.g., 'brooklyn' -> 'Brooklyn').`
+
+---
+**Timestamp:** `2026-01-29 18:00:00`
+**Category:** `FEATURE`
+**Status:** `PUBLISHED`
+**Action:** `Implemented Global "Ignored Columns" Visibility`
+**Details:** `Added "GlobalVisibilityToggle" (Eye Icon) to header. Allows users to completely hide ignored columns from the Workshop Grid, Issue Counts, and CSV Exports. Implemented filtering logic in WorkshopView and DiffView.`
+**Impact:** `Users can now curate the dataset by "Ignoring" irrelevant columns, resulting in a cleaner UI and exported file.`
+
+---
+**Timestamp:** `2026-01-29 18:15:00`
+**Category:** `BUG_FIX`
+**Status:** `SOLVED`
+**Error Message:** `Review & Export Tab ignored hidden columns`
+**Root Cause Analysis:** `The DiffView component was reading raw state.columns instead of the filtered list. It also used an internal export function instead of the shared utility.`
+**Solution:** `Updated DiffView to inherit global visibility settings and reuse downloadCleanCsv. Also swapped UI layout to show "Cleaned Output" on top (primary) and "Original Source" on bottom (primary download action is top).`
+**Refactoring Action:** `Unified Export & Visibility Logic across views.`
