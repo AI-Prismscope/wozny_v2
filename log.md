@@ -213,3 +213,93 @@
 **Root Cause Analysis:** `The DiffView component was reading raw state.columns instead of the filtered list. It also used an internal export function instead of the shared utility.`
 **Solution:** `Updated DiffView to inherit global visibility settings and reuse downloadCleanCsv. Also swapped UI layout to show "Cleaned Output" on top (primary) and "Original Source" on bottom (primary download action is top).`
 **Refactoring Action:** `Unified Export & Visibility Logic across views.`
+
+---
+**Timestamp:** `2026-01-31 09:30:00`
+**Category:** `INTEGRATION`
+**Status:** `SOLVED`
+**Error Message:** `Unknown task type: cluster-texts`
+**Root Cause Analysis:** `The UI was trying to call the "cluster-texts" task on the ML Worker, but the worker code had only been partially updated (missing the actual message handler in the switch statement), causing it to throw an "Unknown task" error.`
+**Solution Implemented:** `Updated src/lib/workers/ml-worker.ts to explicitly handle the 'cluster-texts' message type and route it to the handleClusterTexts function.`
+**Refactoring Action:** `Completed ML Worker implementation for clustering.`
+---
+**Timestamp:** `2026-01-31 09:45:00`
+**Category:** `EVAL`
+**Status:** `SOLVED`
+**Error Message:** `Search failure: "show cluster 1" returned 0 results.`
+**Root Cause Analysis:** `The LLM (Ask Wozny) was unaware of newly created columns (like "Account Manager Group") and their values ("Cluster 1") because the prompt context was static. Additionally, strict casing in the generated code caused failures when users typed "cluster 1" vs "Cluster 1".`
+**Solution Implemented:** `Implemented "Dual Approach": 1. Updated useWoznyLLM.ts to inject a live schema summary (including unique values for categorical columns) into the System Prompt. 2. Implemented a "FuzzyRowProxy" in AskWoznyView.tsx to handle case-insensitive property access during filtering.`
+**Refactoring Action:** `Enhanced Ask Wozny intelligence with Context Re-hydration and Fuzzy Logic.`
+---
+**Timestamp:** `2026-01-31 10:00:00`
+**Category:** `FEATURE`
+**Status:** `PUBLISHED`
+**Action:** `Implemented "About Wozny" Tab`
+**Details:** `Added a dedicated About page explaining the "Local-First" mission and the 3 Layers of Intelligence (Analyst, Brain, Assistant). Added a HelpCircle icon to the main navigation.`
+**Impact:** `Improved user onboarding and transparency about privacy/architecture.`
+
+---
+**Timestamp:** `2026-01-31 10:40:00`
+**Category:** `UI_UX`
+**Status:** `PUBLISHED`
+**Action:** `Enhanced About Page & Workflow`
+**Details:** `Refactored About Page layout to be side-by-side (Text Left, Actions Right) for better visibility. Updated "How It Works" workflow to explicitly separate "Review Insights" (Step 2) and "Ask Wozny" (Step 3). Set "About" as the default landing tab.`
+
+---
+**Timestamp:** `2026-01-31 11:43:00`
+**Category:** `FEATURE`
+**Status:** `PUBLISHED`
+**Action:** `Implemented "Smart Split" Action`
+**Details:** `Added regex-based column splitting (Street/City/State/Zip) to the Workshop Grid header. Uses a pattern-first waterfall logic with UI feedback.`
+---
+**Timestamp:** `2026-01-31 13:10:00`
+**Category:** `BUG_FIX`
+**Status:** `SOLVED`
+**Error Message:** `[Missing]` appeared as literal text in extracted columns instead of the red "Missing" label.
+**Root Cause Analysis:** `The Title Casing formatter was converting [MISSING] to [Missing]. The DataGrid/Analysis logic was doing case-sensitive checks for [MISSING], missing the title-cased tag. This caused the UI to render the string literal instead of the special italicized label.`
+**Solution Implemented:** `Updated DataGrid.tsx and data-quality.ts to perform case-insensitive checks for [MISSING]. Also instructed autoFixRow to skip any value wrapped in brackets [].`
+**Refactoring Action:** `Standardized Missing Value detection across UI and Logic layers.`
+
+---
+**Timestamp:** `2026-01-31 13:20:00`
+**Category:** `BUG_FIX`
+**Status:** `SOLVED`
+**Error Message:** `Auto-Fix converted state codes (NY) to title case (Ny) in extracted columns.`
+**Root Cause Analysis:** `The Auto-Fix logic was too aggressive, applying title-casing to all columns regardless of whether an issue was detected. It also didn't recognize Address_State as a state column.`
+**Solution Implemented:** `1. Refactored autoFixRow to ONLY touch columns with detected FORMAT issues. 2. Updated state detection to include Address_State. 3. Enforced strict Uppercasing for state fixes.`
+**Refactoring Action:** `Implemented 'Surgical Auto-Fix' to prevent regressions on valid data.`
+---
+**Timestamp:** `2026-01-31 13:30:00`
+**Category:** `UI_UX`
+**Status:** `PUBLISHED`
+**Action:** `Implemented "Sample-Based Dynamic Column Auto-Sizing"`
+**Details:** `Created a high-performance measurement engine using HTML5 Canvas to calculate optimal column widths based on real data (sampling first 100 rows). Integrated into useWoznyStore and DataGrid. Automatically adjusts on upload, split, or column addition.`
+**Impact:** `Eliminates the "Squinting/Scrolling" problem. Columns like 'Street' now expand to fit their content perfectly while 'Zip' stays compact.`
+---
+**Timestamp:** `2026-01-31 13:35:00`
+**Category:** `UI_UX`
+**Status:** `PUBLISHED`
+**Action:** `Implemented Multi-Line Header Wrapping`
+**Details:** `Increased HEADER_HEIGHT to 56px and enabled text wrapping (line-clamp-2) in DataGrid columns. This prevents truncation of long column names like 'Address_Street' or 'Account_Manager'.`
+**Impact:** `Improved header readability for narrow columns.`
+---
+**Timestamp:** `2026-01-31 14:30:00`
+**Category:** `LOGIC_FIX`
+**Status:** `SOLVED`
+**Action:** `Implemented Date Normalization (Temporal Remediation)`
+**Details:** `Created a normalizeDate helper in data-quality.ts that handles mixed formats (e.g., '26-Dec-2023', '05/03/2024') using Date.parse and regex fallbacks. Integrated into autoFixRow to convert malformed dates to YYYY-MM-DD standard.`
+**Impact:** `Auto-Fix now supports reliable date standardization.`
+---
+**Timestamp:** `2026-01-31 14:32:00`
+**Category:** `UI_UX`
+**Status:** `SOLVED`
+**Action:** `Expanded Auto-Fix Whitelist for Categorical Columns`
+**Details:** `Added 'method', 'type', 'status', 'category', 'payment', and 'role' to the Title Case whitelist in autoFixRow. This ensures columns like 'Payment Method' (e.g., cash -> Cash) are correctly normalized.`
+**Impact:** `Improved Auto-Fix coverage for common non-PII spreadsheet columns.`
+---
+**Timestamp:** `2026-01-31 14:34:00`
+**Category:** `UI_UX`
+**Status:** `SOLVED`
+**Action:** `Implemented Smart Typography (Underscore Wrapping & Selection)`
+**Details:** `Inserted zero-width spaces (\u200B) after underscores in headers to enable browser wrapping for snake_case column names. Removed 'select-none' to restore native text selection for headers.`
+**Impact:** `Significantly improved header readability and user utility.`

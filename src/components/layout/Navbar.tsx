@@ -3,7 +3,7 @@
 import React from 'react';
 import { useWoznyStore } from '@/lib/store/useWoznyStore';
 import clsx from 'clsx';
-import { UploadCloud, Table, FileText, Wrench, Download, Wand2 } from 'lucide-react';
+import { UploadCloud, Table, FileText, Wrench, Download, Wand2, HelpCircle } from 'lucide-react';
 
 export const Navbar = () => {
     const activeTab = useWoznyStore((state) => state.activeTab);
@@ -17,6 +17,7 @@ export const Navbar = () => {
         { id: 'workshop', label: 'Workshop', icon: Wrench, hidden: false },
         { id: 'ask-wozny', label: 'Ask Wozny', icon: Wand2, hidden: false },
         { id: 'diff', label: 'Review & Export', icon: Download, hidden: false },
+        { id: 'about', label: 'About', icon: HelpCircle, hidden: false },
         // Hidden / Deprecated
         { id: 'analysis', label: 'Analysis', icon: FileText, hidden: true },
         { id: 'table', label: 'Table Data', icon: Table, hidden: true },

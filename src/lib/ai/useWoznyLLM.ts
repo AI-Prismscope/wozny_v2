@@ -21,9 +21,14 @@ interface LLMState {
     generateText: (prompt: string, systemPrompt?: string, options?: { temperature?: number; top_p?: number; max_tokens?: number }) => Promise<string>;
 
     // Specialized Skills
-    generateFilterCode: (columns: string[], userQuery: string) => Promise<string>;
+    generateFilterCode: (columns: string[], userQuery: string, rows?: Record<string, string>[]) => Promise<string>;
     standardizeValues: (uniqueValues: string[]) => Promise<Record<string, string>>;
     enrichRow: (row: Record<string, string>, userPrompt: string) => Promise<string>;
+
+    // New Cleaning Skills
+    normalizeDates: (dates: string[]) => Promise<Record<string, string>>;
+    normalizeCurrency: (values: string[]) => Promise<Record<string, string>>;
+    standardizeStateCodes: (values: string[]) => Promise<Record<string, string>>;
 }
 
 export const useWoznyLLM = create<LLMState>((set, get) => ({
@@ -74,18 +79,43 @@ export const useWoznyLLM = create<LLMState>((set, get) => ({
         return reply.choices[0]?.message?.content || "";
     },
 
-    generateFilterCode: async (columns, userQuery) => {
+    generateFilterCode: async (columns, userQuery, rows = []) => {
         const { generateText } = get();
+
+        // 1. Build Schema Context
+        // We want to give the LLM a hint about the data, especially generic "Group" columns.
+        let schemaSummary = "AVAILABLE COLUMNS:\n";
+        columns.forEach(col => {
+            schemaSummary += `- "${col}"`;
+
+            // If we have rows, maybe peek at unique values for "Group" or "Status" columns?
+            // Limit to columns with few unique values (categorical)
+            if (rows.length > 0) {
+                const uniqueValues = new Set<string>();
+                for (let i = 0; i < Math.min(rows.length, 500); i++) { // Scan first 500 rows
+                    const val = rows[i][col];
+                    if (val) uniqueValues.add(String(val).trim());
+                    if (uniqueValues.size > 10) break; // Too many values, ignore
+                }
+
+                if (uniqueValues.size > 0 && uniqueValues.size <= 10) {
+                    schemaSummary += ` (Values: ${Array.from(uniqueValues).join(', ')})`;
+                }
+            }
+            schemaSummary += "\n";
+        });
 
         const systemPrompt = `
         You are a JavaScript Logic Generator. 
-        Task: Convert user requests into raw arrow functions.
+        Task: Convert user requests into raw arrow functions to filter data.
         Requirement: Output ONLY the arrow function code.
+
+        ${schemaSummary}
 
         DATA REFERENCE:
         - Missing string: "[MISSING]"
-        - Column name mapping: Exact match or Index Mapping
-
+        - Column name mapping: Use EXACT column names from the list above.
+        
         EXAMPLES:
         Input: "show rows with missing data in telephone"
         Output: (row) => row["telephone"] === "[MISSING]"
@@ -104,6 +134,9 @@ export const useWoznyLLM = create<LLMState>((set, get) => ({
 
         Input: "Show rows that have a Phone Number"
         Output: (row) => row['Phone'] !== '[MISSING]'
+        
+        Input: "Show cluster 1"
+        Output: (row) => row['Account Manager Group'] === 'Cluster 1'
         `;
 
         const response = await generateText(userQuery, systemPrompt, {
@@ -164,5 +197,80 @@ export const useWoznyLLM = create<LLMState>((set, get) => ({
         const response = await generateText(rowStr, systemPrompt);
 
         return response.trim();
+    },
+
+    // --- NEW SKILLS ---
+
+    normalizeDates: async (dates) => {
+        const { generateText } = get();
+        const systemPrompt = `You are a Date Normalization Bot.
+        Task: Convert diverse date strings into ISO 8601 format (YYYY-MM-DD).
+        Input: A list of date strings.
+        Output: A JSON Map { "Original String": "YYYY-MM-DD" }.
+        Rules:
+        - If invalid or ambiguous, return null.
+        - "Jan 1, 2024" -> "2024-01-01"
+        - "12/31/23" -> "2023-12-31"
+        - Return ONLY JSON.
+        `;
+
+        const prompt = `Dates to Fix:\n${dates.join('\n')}`;
+        const response = await generateText(prompt, systemPrompt, { temperature: 0.1 }); // Low temp for logic
+
+        try {
+            let jsonStr = response.trim();
+            if (jsonStr.startsWith('```json')) jsonStr = jsonStr.replace('```json', '').replace('```', '');
+            if (jsonStr.startsWith('```')) jsonStr = jsonStr.replace('```', '').replace('```', '');
+            return JSON.parse(jsonStr);
+        } catch (e) { return {}; }
+    },
+
+    normalizeCurrency: async (values) => {
+        const { generateText } = get();
+        const systemPrompt = `You are a Currency Normalization Bot.
+        Task: Clean currency strings to a standard numeric format (1234.56).
+        Input: A list of price strings.
+        Output: A JSON Map { "Original": "Cleaned" }.
+        Rules:
+        - Remove symbols ($, €, £).
+        - Ensure 2 decimal places if applicable.
+        - "1,000.00" -> "1000.00"
+        - "$50" -> "50.00"
+        - Return ONLY JSON.
+        `;
+
+        const prompt = `Values to Fix:\n${values.join('\n')}`;
+        const response = await generateText(prompt, systemPrompt, { temperature: 0.1 });
+
+        try {
+            let jsonStr = response.trim();
+            if (jsonStr.startsWith('```json')) jsonStr = jsonStr.replace('```json', '').replace('```', '');
+            if (jsonStr.startsWith('```')) jsonStr = jsonStr.replace('```', '').replace('```', '');
+            return JSON.parse(jsonStr);
+        } catch (e) { return {}; }
+    },
+
+    standardizeStateCodes: async (values) => {
+        const { generateText } = get();
+        const systemPrompt = `You are a US Geography Bot.
+        Task: Convert State names to 2-Letter ISO Codes (New York -> NY).
+        Input: List of state names/codes.
+        Output: JSON Map { "Original": "Code" }.
+        Rules:
+        - "California" -> "CA"
+        - "mass." -> "MA"
+        - "NY" -> "NY" (Keep as is)
+        - Return ONLY JSON.
+        `;
+
+        const prompt = `States to Fix:\n${values.join('\n')}`;
+        const response = await generateText(prompt, systemPrompt, { temperature: 0.1 });
+
+        try {
+            let jsonStr = response.trim();
+            if (jsonStr.startsWith('```json')) jsonStr = jsonStr.replace('```json', '').replace('```', '');
+            if (jsonStr.startsWith('```')) jsonStr = jsonStr.replace('```', '').replace('```', '');
+            return JSON.parse(jsonStr);
+        } catch (e) { return {}; }
     }
 }));

@@ -5,7 +5,7 @@ import { useVirtualizer } from '@tanstack/react-virtual';
 import { RowData } from '@/lib/store/useWoznyStore';
 import clsx from 'clsx';
 
-import { Trash2, Eye, EyeOff } from 'lucide-react';
+import { Trash2, Eye, EyeOff, Scissors } from 'lucide-react';
 
 interface DataGridProps {
     data: RowData[];
@@ -15,14 +15,16 @@ interface DataGridProps {
     onDeleteRow?: (rowIndex: number) => void;
     issueMap?: Record<number, Record<string, string>>;
     rowStateMap?: Record<number, 'DUPLICATE' | 'MULTIPLE' | 'Loading'>;
+    columnWidths?: Record<string, number>;
     // Column Management
     ignoredColumns?: string[];
     onToggleIgnore?: (col: string) => void;
+    onSplitColumn?: (col: string) => void; // New Prop
 }
 
 export const DataGrid = React.forwardRef<HTMLDivElement, DataGridProps>(({
     data, columns, className, onCellClick, onDeleteRow, issueMap, rowStateMap,
-    ignoredColumns = [], onToggleIgnore
+    ignoredColumns = [], onToggleIgnore, onSplitColumn, columnWidths = {}
 }, ref) => {
     const defaultRef = useRef<HTMLDivElement>(null);
     const parentRef = (ref as React.RefObject<HTMLDivElement>) || defaultRef;
@@ -34,7 +36,26 @@ export const DataGrid = React.forwardRef<HTMLDivElement, DataGridProps>(({
         overscan: 10,
     });
 
-    const HEADER_HEIGHT = 45;
+    const HEADER_HEIGHT = 56;
+
+    // Smart Column Sizing Heuristic
+    const getColumnWidth = (col: string) => {
+        // Source of Truth: Store-calculated dynamic widths
+        if (columnWidths[col]) return columnWidths[col];
+
+        const lower = col.toLowerCase();
+        if (lower.includes('address') || lower.includes('description') || lower.includes('note') || lower.includes('summary')) return 320;
+        if (lower.includes('email') || lower.includes('url') || lower.includes('link') || lower.includes('title')) return 240;
+
+        // Name Logic
+        if (lower.includes('manager')) return 200; // Account Manager usually long
+        if (lower === 'name' || lower === 'full name' || lower === 'fullname') return 200;
+        if (lower.includes('name')) return 140; // First Name, Last Name -> Narrower
+
+        if (lower.includes('state') || lower.includes('zip') || lower.includes('year') || lower.includes('id') || lower === 'xx') return 100;
+        if (lower.includes('phone') || lower.includes('date')) return 140;
+        return 180; // Default
+    };
 
     return (
         <div
@@ -56,11 +77,29 @@ export const DataGrid = React.forwardRef<HTMLDivElement, DataGridProps>(({
                 >
                     {columns.map((col) => {
                         const isIgnored = ignoredColumns.includes(col);
+                        const width = getColumnWidth(col);
                         return (
-                            <div key={col} className="w-48 shrink-0 border-r border-neutral-200 dark:border-neutral-800 last:border-r-0 flex items-center justify-between px-3 group">
-                                <span className={clsx("truncate select-none", isIgnored && "opacity-50 line-through")}>
-                                    {col}
+                            <div
+                                key={col}
+                                style={{ width }}
+                                className="shrink-0 border-r border-neutral-200 dark:border-neutral-800 last:border-r-0 flex items-center justify-between px-3 group"
+                            >
+                                <span className={clsx("whitespace-normal line-clamp-2 leading-tight py-1", isIgnored && "opacity-50 line-through")}>
+                                    {col.split('_').join('_\u200B')}
                                 </span>
+
+                                {onSplitColumn && (
+                                    <button
+                                        onClick={(e) => {
+                                            e.stopPropagation();
+                                            onSplitColumn(col);
+                                        }}
+                                        className="text-neutral-400 hover:text-purple-600 dark:hover:text-purple-400 p-1 rounded-full hover:bg-neutral-200 dark:hover:bg-neutral-800 transition-all opacity-0 group-hover:opacity-100 focus:opacity-100 mr-1"
+                                        title="Smart Split Address"
+                                    >
+                                        <Scissors className="w-4 h-4" />
+                                    </button>
+                                )}
 
                                 {onToggleIgnore && (
                                     <button
@@ -119,14 +158,16 @@ export const DataGrid = React.forwardRef<HTMLDivElement, DataGridProps>(({
                         >
                             {columns.map((col) => {
                                 const val = row[col];
-                                const isMissing = val === '[MISSING]';
+                                const isMissing = val?.toString().toUpperCase() === '[MISSING]';
                                 const issueType = rowIssues ? rowIssues[col] : null;
+                                const width = getColumnWidth(col);
 
                                 return (
                                     <div
                                         key={`${virtualRow.index}-${col}`}
+                                        style={{ width }}
                                         className={clsx(
-                                            "w-48 shrink-0 px-3 truncate border-r border-neutral-100 dark:border-neutral-800/50 last:border-r-0 h-full flex items-center transition-colors",
+                                            "shrink-0 px-3 truncate border-r border-neutral-100 dark:border-neutral-800/50 last:border-r-0 h-full flex items-center transition-colors",
                                             // Interactive Cursor
                                             onCellClick && "cursor-[cell]",
                                             // Apply Highlight Class

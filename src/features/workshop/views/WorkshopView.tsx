@@ -3,7 +3,7 @@
 import React, { useState, useMemo } from 'react';
 import { useWoznyStore, RowData, AnalysisIssue } from '@/lib/store/useWoznyStore';
 import { DataGrid } from '@/shared/DataGrid';
-import { FileText, AlertTriangle, Ban, Layers } from 'lucide-react';
+import { FileText, AlertTriangle, Ban, Layers, Loader2, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
 import clsx from 'clsx';
 
 type FilterType = 'ALL' | 'MISSING' | 'FORMAT' | 'DUPLICATE' | 'USER_SELECTION';
@@ -20,6 +20,7 @@ export const WorkshopView = () => {
     const removeRow = useWoznyStore((state) => state.removeRow);
     const resolveDuplicates = useWoznyStore((state) => state.resolveDuplicates);
     const autoFormat = useWoznyStore((state) => state.autoFormat);
+    const splitAddressColumn = useWoznyStore((state) => state.splitAddressColumn);
 
     // Filter Logic:
     // If showHiddenColumns is FALSE, we hide ignored columns from the View entirely.
@@ -27,6 +28,7 @@ export const WorkshopView = () => {
         if (showHiddenColumns) return columns;
         return columns.filter(c => !ignoredColumns.includes(c));
     }, [columns, ignoredColumns, showHiddenColumns]);
+
 
     // Also filter issues to match visible columns
     const visibleIssues = useMemo(() => {
@@ -153,16 +155,57 @@ export const WorkshopView = () => {
         // We don't clear selection or value, allowing multiple edits
     };
 
+    // Split Flow State
+    const [splitConfirmation, setSplitConfirmation] = useState<string | null>(null);
+    const [isSplitting, setIsSplitting] = useState(false);
+    const [splitResult, setSplitResult] = useState<{ success: number; fail: number } | null>(null);
+
+    // Sidebar State
+    const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+
+    const handleSplitClick = (col: string) => {
+        console.log("✂️ Split Clicked for:", col);
+        setSplitConfirmation(col);
+    };
+
+    const confirmSplit = async () => {
+        if (!splitConfirmation) return;
+        const col = splitConfirmation;
+        setIsSplitting(true); // Show Loading State
+
+        // Use timeout to let UI render the loading state before blocking
+        setTimeout(async () => {
+            const result = await splitAddressColumn(col);
+            setIsSplitting(false);
+            setSplitConfirmation(null);
+            setSplitResult(result); // Show Result Modal
+        }, 100);
+    };
+
     return (
         <div className="flex h-full bg-neutral-50 dark:bg-neutral-900 relative">
             {/* Sidebar */}
-            <div className="w-64 border-r border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 flex flex-col">
-                <div className="p-6 border-b border-neutral-200 dark:border-neutral-800">
-                    <h1 className="text-xl font-bold text-blue-600 dark:text-blue-400">The Workshop</h1>
-                    <p className="text-xs text-neutral-500 mt-1">Remediation Console</p>
+            <div className={clsx(
+                "border-r border-neutral-200 dark:border-neutral-800 bg-white dark:bg-neutral-900 flex flex-col transition-all duration-300",
+                isSidebarCollapsed ? "w-16" : "w-64"
+            )}>
+                <div className="p-4 border-b border-neutral-200 dark:border-neutral-800 flex items-center justify-between h-[60px]">
+                    {!isSidebarCollapsed && (
+                        <div>
+                            <h1 className="text-xl font-bold text-blue-600 dark:text-blue-400">Workshop</h1>
+                            <p className="text-xs text-neutral-500">Remediation</p>
+                        </div>
+                    )}
+                    <button
+                        onClick={() => setIsSidebarCollapsed(!isSidebarCollapsed)}
+                        className="p-1.5 rounded-md hover:bg-neutral-100 dark:hover:bg-neutral-800 text-neutral-500"
+                        title={isSidebarCollapsed ? "Expand Sidebar" : "Collapse Sidebar"}
+                    >
+                        {isSidebarCollapsed ? <PanelLeftOpen className="w-5 h-5" /> : <PanelLeftClose className="w-5 h-5" />}
+                    </button>
                 </div>
 
-                <nav className="flex-1 p-4 space-y-2">
+                <nav className="flex-1 p-2 space-y-2">
                     <SidebarItem
                         label="All Data"
                         count={counts.ALL}
@@ -170,6 +213,7 @@ export const WorkshopView = () => {
                         isActive={filter === 'ALL'}
                         onClick={() => setFilter('ALL')}
                         color="text-neutral-600"
+                        collapsed={isSidebarCollapsed}
                     />
                     <SidebarItem
                         label="Missing Values"
@@ -178,6 +222,7 @@ export const WorkshopView = () => {
                         isActive={filter === 'MISSING'}
                         onClick={() => setFilter('MISSING')}
                         color="text-red-500"
+                        collapsed={isSidebarCollapsed}
                     />
                     <SidebarItem
                         label="Formatting"
@@ -186,16 +231,18 @@ export const WorkshopView = () => {
                         isActive={filter === 'FORMAT'}
                         onClick={() => setFilter('FORMAT')}
                         color="text-yellow-500"
+                        collapsed={isSidebarCollapsed}
                     />
 
                     {counts.USER_SELECTION > 0 && (
                         <SidebarItem
                             label="User Selection"
                             count={counts.USER_SELECTION}
-                            icon={Layers} // Reusing Layers or maybe specialized icon?
+                            icon={Layers}
                             isActive={filter === 'USER_SELECTION'}
                             onClick={() => setFilter('USER_SELECTION')}
                             color="text-purple-600"
+                            collapsed={isSidebarCollapsed}
                         />
                     )}
                     <SidebarItem
@@ -205,6 +252,7 @@ export const WorkshopView = () => {
                         isActive={filter === 'DUPLICATE'}
                         onClick={() => setFilter('DUPLICATE')}
                         color="text-blue-500"
+                        collapsed={isSidebarCollapsed}
                     />
                 </nav>
 
@@ -268,7 +316,7 @@ export const WorkshopView = () => {
                                 onClick={() => autoFormat()}
                                 className="text-xs font-medium bg-gradient-to-r from-yellow-100 to-yellow-50 text-yellow-800 px-3 py-1.5 rounded-full border border-yellow-200 hover:shadow-sm transition-all flex items-center gap-2"
                             >
-                                <span className="text-md">✨</span> Auto-Fix Casing & Phones
+                                <span className="text-md">✨</span> Auto-Fix Format Issues
                             </button>
                         )}
                         {filter === 'DUPLICATE' && (
@@ -291,12 +339,14 @@ export const WorkshopView = () => {
                         columns={visibleColumns}
                         issueMap={issueMap}
                         rowStateMap={rowStateMap}
+                        columnWidths={useWoznyStore((state) => state.columnWidths)}
                         className="shadow-sm border border-neutral-200 dark:border-neutral-800"
                         onCellClick={filter === 'FORMAT' || filter === 'DUPLICATE' ? undefined : handleCellUpdate}
                         onDeleteRow={filter === 'DUPLICATE' || filter === 'MISSING' ? handleRemoveRow : undefined}
                         // Column Management
                         ignoredColumns={ignoredColumns}
                         onToggleIgnore={useWoznyStore((state) => state.toggleIgnoreColumn)}
+                        onSplitColumn={handleSplitClick}
                     />
                 </div>
             </div>
@@ -342,26 +392,100 @@ export const WorkshopView = () => {
                     </div>
                 </div>
             )}
+            {/* Confirmation Modal for Split */}
+            {splitConfirmation && (
+                <div className="fixed inset-0 z-[100] bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
+                    <div className="bg-white dark:bg-neutral-900 rounded-xl shadow-2xl p-6 w-full max-w-sm border border-neutral-200 dark:border-neutral-800">
+                        <h3 className="text-lg font-bold mb-2 text-neutral-900 dark:text-white">Smart Split Column?</h3>
+                        <p className="text-sm text-neutral-600 dark:text-neutral-400 mb-6">
+                            This will split <strong>"{splitConfirmation}"</strong> into 4 new columns:
+                            <br />
+                            <code className="text-xs bg-neutral-100 dark:bg-neutral-800 px-1 py-0.5 rounded">Street</code>,
+                            <code className="text-xs bg-neutral-100 dark:bg-neutral-800 px-1 py-0.5 rounded">City</code>,
+                            <code className="text-xs bg-neutral-100 dark:bg-neutral-800 px-1 py-0.5 rounded">State</code>,
+                            <code className="text-xs bg-neutral-100 dark:bg-neutral-800 px-1 py-0.5 rounded">Zip</code>
+                        </p>
+
+                        {isSplitting ? (
+                            <div className="flex flex-col items-center justify-center py-4 space-y-3">
+                                <Loader2 className="w-8 h-8 text-purple-600 animate-spin" />
+                                <span className="text-sm font-medium text-neutral-500">Processing Pattern Match...</span>
+                            </div>
+                        ) : (
+                            <div className="flex justify-end gap-3">
+                                <button
+                                    onClick={() => setSplitConfirmation(null)}
+                                    className="px-4 py-2 text-sm font-medium text-neutral-600 hover:text-neutral-900 transition-colors"
+                                >
+                                    Cancel
+                                </button>
+                                <button
+                                    onClick={confirmSplit}
+                                    className="px-4 py-2 text-sm font-medium bg-purple-600 hover:bg-purple-700 text-white rounded-lg shadow-sm transition-colors flex items-center gap-2"
+                                >
+                                    <Layers className="w-4 h-4" />
+                                    Confirm Split
+                                </button>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            )}
+
+            {/* Result Modal */}
+            {splitResult && (
+                <div className="fixed inset-0 z-[100] bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
+                    <div className="bg-white dark:bg-neutral-900 rounded-xl shadow-2xl p-6 w-full max-w-sm border border-neutral-200 dark:border-neutral-800 text-center">
+                        <div className="w-12 h-12 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                            <FileText className="w-6 h-6" />
+                        </div>
+                        <h3 className="text-lg font-bold mb-2 text-neutral-900 dark:text-white">Split Complete!</h3>
+                        <div className="grid grid-cols-2 gap-4 mb-6">
+                            <div className="bg-green-50 dark:bg-green-900/20 p-3 rounded-lg">
+                                <div className="text-2xl font-bold text-green-600">{splitResult.success}</div>
+                                <div className="text-xs text-green-700 uppercase font-bold">Success</div>
+                            </div>
+                            <div className="bg-amber-50 dark:bg-amber-900/20 p-3 rounded-lg">
+                                <div className="text-2xl font-bold text-amber-600">{splitResult.fail}</div>
+                                <div className="text-xs text-amber-700 uppercase font-bold">Review</div>
+                            </div>
+                        </div>
+                        <button
+                            onClick={() => setSplitResult(null)}
+                            className="w-full px-4 py-2 text-sm font-medium bg-neutral-900 dark:bg-white text-white dark:text-black rounded-lg hover:opacity-90 transition-opacity"
+                        >
+                            Done
+                        </button>
+                    </div>
+                </div>
+            )}
         </div>
     );
 };
 
-const SidebarItem = ({ label, count, icon: Icon, isActive, onClick, color }: any) => (
+const SidebarItem = ({ label, count, icon: Icon, isActive, onClick, color, collapsed }: any) => (
     <button
         onClick={onClick}
         className={clsx(
-            "w-full flex items-center justify-between p-3 rounded-lg text-sm font-medium transition-all group",
+            "w-full flex items-center p-2 rounded-lg text-sm font-medium transition-all group relative",
+            collapsed ? "justify-center" : "justify-between",
             isActive
                 ? "bg-white border-2 border-blue-500 shadow-sm"
                 : "hover:bg-neutral-100 dark:hover:bg-neutral-800 border-2 border-transparent"
         )}
+        title={collapsed ? `${label} (${count})` : undefined}
     >
-        <div className="flex items-center gap-3">
-            <Icon className={clsx("w-4 h-4", color)} />
-            <span className={clsx("text-neutral-700 dark:text-neutral-300", isActive && "font-bold")}>{label}</span>
+        <div className={clsx("flex items-center gap-3", collapsed && "justify-center")}>
+            <Icon className={clsx("w-5 h-5 shrink-0", color)} />
+            {!collapsed && <span className={clsx("text-neutral-700 dark:text-neutral-300", isActive && "font-bold")}>{label}</span>}
         </div>
-        <span className="bg-neutral-100 dark:bg-neutral-800 text-neutral-600 px-2 py-0.5 rounded text-xs font-mono group-hover:bg-white transition-colors">
-            {count}
-        </span>
+        {!collapsed && (
+            <span className="bg-neutral-100 dark:bg-neutral-800 text-neutral-600 px-2 py-0.5 rounded text-xs font-mono group-hover:bg-white transition-colors">
+                {count}
+            </span>
+        )}
+        {collapsed && isActive && (
+            <div className="absolute right-1 top-1 w-2 h-2 bg-blue-500 rounded-full" />
+        )}
     </button>
 );

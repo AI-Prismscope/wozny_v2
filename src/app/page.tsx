@@ -10,6 +10,8 @@ import { useWoznyStore } from '@/lib/store/useWoznyStore';
 
 import { DiffView } from '@/features/diff/views/DiffView';
 
+import { AboutView } from '@/features/about/views/AboutView';
+
 export default function Home() {
   const activeTab = useWoznyStore((state) => state.activeTab);
 
@@ -21,6 +23,7 @@ export default function Home() {
       {activeTab === 'workshop' && <WorkshopView />}
       {activeTab === 'ask-wozny' && <AskWoznyView />}
       {activeTab === 'diff' && <DiffView />}
+      {activeTab === 'about' && <AboutView />}
     </Shell>
   );
 }

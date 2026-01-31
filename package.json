@@ -10,6 +10,7 @@
     "test": "vitest"
   },
   "dependencies": {
+    "@huggingface/transformers": "^3.8.1",
     "@mlc-ai/web-llm": "^0.2.80",
     "@tanstack/react-virtual": "^3.13.18",
     "clsx": "^2.1.1",

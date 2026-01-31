@@ -36,7 +36,7 @@ export const AskWoznyView = () => {
 
         setIsThinking(true);
         try {
-            const code = await generateFilterCode(columns, aiQuery);
+            const code = await generateFilterCode(columns, aiQuery, rows);
             console.log("AI Code:", code);
             setAiFilterCode(code);
         } catch (e) {
@@ -95,12 +95,35 @@ export const AskWoznyView = () => {
             console.log("Raw AI Code:", aiFilterCode);
             console.log("Parsed Code:", cleanCode);
 
-            // 4. Create the filter function
+            // 4. Create Fuzzy Proxy Helper
+            const createFuzzyRowProxy = (targetRow: RowData) => {
+                return new Proxy(targetRow, {
+                    get: (target, prop) => {
+                        if (typeof prop !== 'string') return Reflect.get(target, prop);
+
+                        // 1. Exact match
+                        if (prop in target) return target[prop];
+
+                        // 2. Case-insensitive match
+                        const exactKeys = Object.keys(target);
+                        const lowerProp = prop.toLowerCase();
+                        const key = exactKeys.find(k => k.toLowerCase() === lowerProp);
+                        if (key) return target[key];
+
+                        // 3. Fallback (maybe Levenshtein later?)
+                        return undefined;
+                    }
+                });
+            };
+
+            // 5. Create the filter function
             const expressionFn = new Function('row', `return (${cleanCode})(row)`);
 
             return rows.filter(row => {
                 try {
-                    return expressionFn(row);
+                    // Wrap row in proxy to handle casing issues like "Account manager" vs "Account Manager"
+                    const proxyRow = createFuzzyRowProxy(row);
+                    return expressionFn(proxyRow);
                 } catch (e) { return false; }
             });
         } catch (e) {
