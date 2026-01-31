@@ -7,7 +7,7 @@ Wozny combines the speed of local processing with the power of AI—without your
 ## The Three Layers of Intelligence
 
 ### 1. The Analyst 📉
-Instantly scans your CSV for missing values, duplicates, and formatting issues (Dates, Currency, URLs, and States).
+Instantly scans your CSV for missing values, duplicates, and formatting issues. Features **Type-Aware Smart Sorting** (Currency/Dates) and **Disciplined Smart Split** (Address/Name) with categorical filtering.
 
 ### 2. The Brain 🧠
 Uses client-side Machine Learning to find semantic patterns, grouping variations like "Google" and "Google Inc" automatically using `transformers.js`.

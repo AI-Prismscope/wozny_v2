@@ -15,7 +15,8 @@ The first layer is fast, synchronous, and rule-based. It handles structural heal
     *   **Duplicates:** Hashes rows to find exact matches.
     *   **Missing Values:** Scans for null, undefined, or empty strings.
     *   **Formatting:** Validates emails, phone numbers, and dates; includes **Date Remediation** (ISO-8601 normalization).
-    *   **Smart Split:** Heuristic-based address splitting (Street/City/State/Zip) using a regex waterfall.
+    *   **Smart Split:** Logic-aware data decomposition. Uses a **suffix-anchored waterfall** for robust address splitting and **cardinality/uniqueness checks** combined with business keyword blacklists to differentiate between People and Business Entities.
+    *   **Smart Sorting:** Type-aware sorting engine that handles numerical currency (stripping symbols), temporal date ranges, and natural text. Features a 3-state cycle (Asc/Desc/Off) with stable index restoration.
     *   **Dynamic sizing:** Canvas-based text measurement engine for optimal grid layout.
     *   **Smart Typography:** Underscore-aware header wrapping for readability.
 

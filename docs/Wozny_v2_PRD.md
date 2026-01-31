@@ -41,6 +41,8 @@ To maintain data privacy and accuracy:
     *   **Missing Values:** "Cell A5 is empty."
     *   **Duplicates:** "Row 10 and 55 are 100% identical."
     *   **Formatting Issues:** "Phone number is missing area code."
+    *   **Smart Sorting:** Type-aware sorting for Currency, Dates, and Text with stable "Sort Off" restoration.
+    *   **Smart Split:** Semantic column decomposition (Addresses/Names) with "Disciplined" business-category filtering.
 
 ### **2. "Ask Wozny" (The AI Search)**
 *   **Natural Language Querying:** User types *"Show me all contacts where the Account Manager is Sarah Johnson"*.

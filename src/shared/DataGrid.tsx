@@ -5,7 +5,7 @@ import { useVirtualizer } from '@tanstack/react-virtual';
 import { RowData } from '@/lib/store/useWoznyStore';
 import clsx from 'clsx';
 
-import { Trash2, Eye, EyeOff, Scissors } from 'lucide-react';
+import { Trash2, Eye, EyeOff, Scissors, ArrowUp, ArrowDown } from 'lucide-react';
 
 interface DataGridProps {
     data: RowData[];
@@ -20,11 +20,13 @@ interface DataGridProps {
     onSplitColumn?: (col: string) => void;
     splittableColumns?: Record<string, 'ADDRESS' | 'NAME' | 'NONE'>;
     columnWidths?: Record<string, number>;
+    sortConfig?: { columnId: string; direction: 'asc' | 'desc' } | null;
+    onSort?: (col: string) => void;
 }
 
 export const DataGrid = React.forwardRef<HTMLDivElement, DataGridProps>(({
     data, columns, className, onCellClick, onDeleteRow, issueMap, rowStateMap,
-    ignoredColumns = [], onToggleIgnore, onSplitColumn, splittableColumns = {}, columnWidths = {}
+    ignoredColumns = [], onToggleIgnore, onSort, onSplitColumn, splittableColumns = {}, columnWidths = {}, sortConfig
 }, ref) => {
     const defaultRef = useRef<HTMLDivElement>(null);
     const parentRef = (ref as React.RefObject<HTMLDivElement>) || defaultRef;
@@ -78,45 +80,58 @@ export const DataGrid = React.forwardRef<HTMLDivElement, DataGridProps>(({
                     {columns.map((col) => {
                         const isIgnored = ignoredColumns.includes(col);
                         const width = getColumnWidth(col);
+                        const isSorted = sortConfig?.columnId === col;
+                        const direction = isSorted ? sortConfig.direction : null;
+
                         return (
                             <div
                                 key={col}
                                 style={{ width }}
-                                className="shrink-0 border-r border-neutral-200 dark:border-neutral-800 last:border-r-0 flex items-center justify-between px-3 group"
+                                className={clsx(
+                                    "shrink-0 border-r border-neutral-200 dark:border-neutral-800 last:border-r-0 flex items-center justify-between px-3 group transition-colors",
+                                    onSort && "cursor-pointer hover:bg-neutral-200/50 dark:hover:bg-neutral-800/50"
+                                )}
+                                onClick={() => onSort?.(col)}
                             >
-                                <span className={clsx("whitespace-normal line-clamp-2 leading-tight py-1", isIgnored && "opacity-50 line-through")}>
-                                    {col.split('_').join('_\u200B')}
-                                </span>
+                                <div className="flex items-center gap-1.5 overflow-hidden">
+                                    <span className={clsx("whitespace-normal line-clamp-2 leading-tight py-1", isIgnored && "opacity-50 line-through")}>
+                                        {col.split('_').join('_\u200B')}
+                                    </span>
+                                    {direction === 'asc' && <ArrowUp className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400 shrink-0" />}
+                                    {direction === 'desc' && <ArrowDown className="w-3.5 h-3.5 text-blue-600 dark:text-blue-400 shrink-0" />}
+                                </div>
 
-                                {onSplitColumn && splittableColumns[col] && splittableColumns[col] !== 'NONE' && (
-                                    <button
-                                        onClick={(e) => {
-                                            e.stopPropagation();
-                                            onSplitColumn(col);
-                                        }}
-                                        className="text-neutral-400 hover:text-purple-600 dark:hover:text-purple-400 p-1 rounded-full hover:bg-neutral-200 dark:hover:bg-neutral-800 transition-all opacity-0 group-hover:opacity-100 focus:opacity-100 mr-1"
-                                        title={`Smart Split ${splittableColumns[col] === 'ADDRESS' ? 'Address' : 'Name'}`}
-                                    >
-                                        <Scissors className="w-4 h-4" />
-                                    </button>
-                                )}
+                                <div className="flex items-center shrink-0">
+                                    {onSplitColumn && splittableColumns[col] && splittableColumns[col] !== 'NONE' && (
+                                        <button
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                onSplitColumn(col);
+                                            }}
+                                            className="text-neutral-400 hover:text-purple-600 dark:hover:text-purple-400 p-1 rounded-full hover:bg-neutral-200 dark:hover:bg-neutral-800 transition-all opacity-0 group-hover:opacity-100 focus:opacity-100 mr-1"
+                                            title={`Smart Split ${splittableColumns[col] === 'ADDRESS' ? 'Address' : 'Name'}`}
+                                        >
+                                            <Scissors className="w-4 h-4" />
+                                        </button>
+                                    )}
 
-                                {onToggleIgnore && (
-                                    <button
-                                        onClick={(e) => {
-                                            e.stopPropagation();
-                                            onToggleIgnore(col);
-                                        }}
-                                        className="text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-200 p-1 rounded-full hover:bg-neutral-200 dark:hover:bg-neutral-800 transition-all opacity-0 group-hover:opacity-100 focus:opacity-100"
-                                        title={isIgnored ? "Restore Column" : "Ignore Column"}
-                                    >
-                                        {isIgnored ? (
-                                            <EyeOff className="w-4 h-4 text-red-500" />
-                                        ) : (
-                                            <Eye className="w-4 h-4" />
-                                        )}
-                                    </button>
-                                )}
+                                    {onToggleIgnore && (
+                                        <button
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                onToggleIgnore(col);
+                                            }}
+                                            className="text-neutral-400 hover:text-neutral-600 dark:hover:text-neutral-200 p-1 rounded-full hover:bg-neutral-200 dark:hover:bg-neutral-800 transition-all opacity-0 group-hover:opacity-100 focus:opacity-100"
+                                            title={isIgnored ? "Restore Column" : "Ignore Column"}
+                                        >
+                                            {isIgnored ? (
+                                                <EyeOff className="w-4 h-4 text-red-500" />
+                                            ) : (
+                                                <Eye className="w-4 h-4" />
+                                            )}
+                                        </button>
+                                    )}
+                                </div>
                             </div>
                         );
                     })}

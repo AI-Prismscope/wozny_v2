@@ -15,6 +15,8 @@ export const AskWoznyView = () => {
     const fileName = useWoznyStore((state) => state.fileName);
     const setActiveTab = useWoznyStore((state) => state.setActiveTab);
     const setUserSelection = useWoznyStore((state) => state.setUserSelection);
+    const sortConfig = useWoznyStore((state) => state.sortConfig);
+    const toggleSort = useWoznyStore((state) => state.toggleSort);
 
     // AI Hooks
     const { initialize, generateFilterCode, isReady, isLoading: isEngineLoading, progress } = useWoznyLLM();
@@ -230,6 +232,8 @@ export const AskWoznyView = () => {
                         data={filteredRows}
                         columns={columns}
                         className="shadow-sm border border-neutral-200 dark:border-neutral-800"
+                        sortConfig={sortConfig}
+                        onSort={toggleSort}
                     />
                 )}
             </div>

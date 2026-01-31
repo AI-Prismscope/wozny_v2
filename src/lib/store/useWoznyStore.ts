@@ -31,6 +31,7 @@ export interface WoznyState {
     showHiddenColumns: boolean;
     columnWidths: Record<string, number>;
     splittableColumns: Record<string, 'ADDRESS' | 'NAME' | 'NONE'>;
+    sortConfig: { columnId: string; direction: 'asc' | 'desc' } | null;
     // Actions
     setCsvData: (fileName: string, data: RowData[], columns: string[]) => void;
     setAnalysisResults: (issues: AnalysisIssue[]) => void;
@@ -50,6 +51,8 @@ export interface WoznyState {
     addColumn: (name: string, values: string[]) => void;
     // Address Split Action
     splitAddressColumn: (columnId: string) => Promise<{ success: number; fail: number }>;
+    // Sort Action
+    toggleSort: (columnId: string) => void;
 }
 
 import { calculateColumnWidths } from '../measure-utils';
@@ -61,9 +64,15 @@ export const useWoznyStore = create<WoznyState>()(
         rows: [],
         columns: [],
         fileName: null, issues: [], activeTab: 'about', isAnalyzing: false, userSelection: [], ignoredColumns: [], showHiddenColumns: false, columnWidths: {}, splittableColumns: {},
+        sortConfig: null,
 
         setCsvData: (fileName, data, columns) => set((state) => {
-            state.fileName = fileName; state.rawRows = data; state.rows = data; state.columns = columns;
+            state.fileName = fileName;
+            state.rawRows = data; // Keep original reference for comparison
+            // IMPORTANT: Deep copy each row so edits in 'rows' don't affect 'rawRows'
+            // and add a stable index for resetting sorts.
+            state.rows = data.map((row, i) => ({ ...row, __wozny_index: String(i) }));
+            state.columns = columns;
             state.columnWidths = calculateColumnWidths(data, columns);
 
             // Detect Splittable Columns
@@ -76,6 +85,7 @@ export const useWoznyStore = create<WoznyState>()(
 
             const autoIssues = runDeterministicAnalysis(data, columns);
             state.issues = autoIssues;
+            state.sortConfig = null; // Reset sort on new data
             state.activeTab = 'report';
         }),
 
@@ -190,6 +200,63 @@ export const useWoznyStore = create<WoznyState>()(
             });
 
             return { success: successCount, fail: failCount };
-        }
+        },
+
+        toggleSort: (columnId) => set((state) => {
+            let nextDir: 'asc' | 'desc' | null = 'asc';
+            if (state.sortConfig?.columnId === columnId) {
+                if (state.sortConfig.direction === 'asc') nextDir = 'desc';
+                else nextDir = null;
+            }
+
+            if (!nextDir) {
+                state.sortConfig = null;
+                // REVERT: Sort by the stable original index
+                state.rows.sort((a, b) => {
+                    const idxA = parseInt(a.__wozny_index || '0');
+                    const idxB = parseInt(b.__wozny_index || '0');
+                    return idxA - idxB;
+                });
+                state.issues = runDeterministicAnalysis(state.rows, state.columns);
+                return;
+            }
+
+            state.sortConfig = { columnId, direction: nextDir };
+
+            // Sort rows
+            state.rows.sort((a, b) => {
+                const valA = String(a[columnId] || '').trim();
+                const valB = String(b[columnId] || '').trim();
+
+                if (!valA && !valB) return 0;
+                if (!valA) return nextDir === 'asc' ? 1 : -1;
+                if (!valB) return nextDir === 'asc' ? -1 : 1;
+
+                // 1. Currency/Number Check
+                const cleanA = valA.replace(/[$,€£\s,]/g, '');
+                const cleanB = valB.replace(/[$,€£\s,]/g, '');
+                const numA = parseFloat(cleanA);
+                const numB = parseFloat(cleanB);
+
+                if (!isNaN(numA) && !isNaN(numB) && cleanA.length > 0 && cleanB.length > 0 && !isNaN(Number(cleanA)) && !isNaN(Number(cleanB))) {
+                    return nextDir === 'asc' ? numA - numB : numB - numA;
+                }
+
+                // 2. Date Check
+                const dateA = Date.parse(valA);
+                const dateB = Date.parse(valB);
+                if (!isNaN(dateA) && !isNaN(dateB) && valA.length > 5 && valB.length > 5) {
+                    return nextDir === 'asc' ? dateA - dateB : dateB - dateA;
+                }
+
+                // 3. Text
+                return nextDir === 'asc'
+                    ? valA.localeCompare(valB, undefined, { numeric: true, sensitivity: 'base' })
+                    : valB.localeCompare(valA, undefined, { numeric: true, sensitivity: 'base' });
+            });
+
+            // Re-run analysis because indices changed
+            state.issues = runDeterministicAnalysis(state.rows, state.columns);
+        })
     }))
 );

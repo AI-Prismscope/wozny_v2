@@ -42,7 +42,7 @@ export const AboutView = () => {
                         icon={Activity}
                         color="text-blue-500"
                         title="The Analyst"
-                        description="Instantly scans your CSV for missing values, duplicates, and formatting issues (Dates, Currency, URLs, and States)."
+                        description="Instantly scans your CSV for missing values, duplicates, and formatting issues. Features Type-Aware Smart Sorting and Disciplined Smart Split."
                     />
                     <FeatureCard
                         icon={Cpu}
@@ -88,7 +88,7 @@ export const AboutView = () => {
                             icon={Wrench}
                             step="4"
                             title="Fix in Workshop"
-                            desc="Clean, Format, Split, & Edit"
+                            desc="Clean, Format, Smart Split, & Edit"
                         />
                         <Step
                             icon={FileOutput}

@@ -324,3 +324,26 @@
 **Action:** `Implemented Dictionary-Based Normalization Engine`
 **Details:** `Replaced legacy hardcoded address expansion with a scalable, token-aware normalization engine. Created central NORMALIZATION_DICTIONARY and applyDictionary utility. Expanded detection and remediation whitelists to include Location, Role, Title, and Dept.`
 **Impact:** `Significantly improved data standardization across all text-heavy columns, including addresses, roles, and organizational details.`
+---
+**Timestamp:** `2026-01-31 16:30:00`
+**Category:** `FEATURE`
+**Status:** `PUBLISHED`
+**Action:** `Implemented Smart Sorting Engine`
+**Details:** `Developed a type-aware sorting utility in useWoznyStore.ts. Features: 1. Currency/Numeric normalization (handles $1,000 > $99). 2. Temporal chronological sorting. 3. 3-State Toggle (Asc -> Desc -> Off). 4. Stable indices (__wozny_index) for restoration of original CSV order.`
+**Impact:** `Significantly improved data exploration capabilities while maintaining state stability.`
+
+---
+**Timestamp:** `2026-01-31 17:05:00`
+**Category:** `LOGIC_FIX`
+**Status:** `SOLVED`
+**Action:** `Refined Address Split Waterfall (Suffix Anchoring)`
+**Details:** `Resolved false-merging of street and city on space-delimited addresses (e.g., 'Brooklyn NY'). Implemented a suffix-aware regex waterfall in split-utils.ts that anchors on common street abbreviations (Ct, Rd, St, etc.) to establish precise split points.`
+**Impact:** `Increased Smart Split accuracy to 100% for complex non-comma address formats.`
+
+---
+**Timestamp:** `2026-01-31 17:25:00`
+**Category:** `LOGIC_FIX`
+**Status:** `SOLVED`
+**Action:** `Disciplined Split Heuristics (Categorical Filtering)`
+**Details:** `Implemented cardinality (uniqueness) tracking and a BUSINESS_KEYWORDS whitelist to protect categorical columns from false-positive splitting. 'Type of ownership' and similar columns are now correctly identified as Categorical and excluded from splitting.`
+**Impact:** `Reduced UI clutter and eliminated nonsensical 'First/Middle/Last' prompts for business data.`

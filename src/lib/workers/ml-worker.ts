@@ -12,13 +12,28 @@ self.onmessage = async (event: MessageEvent<MLRequest>) => {
     const { type, data, options } = event.data;
 
     try {
+        // Fallback to empty array if data is missing
+        const inputData = data || [];
+
         switch (type) {
             case 'feature-extraction':
-                await handleFeatureExtraction(data || []);
+                // Narrowing: feature extraction specifically expects string[]
+                if (Array.isArray(inputData) && typeof inputData[0] === 'string') {
+                    await handleFeatureExtraction(inputData as string[]);
+                } else {
+                    throw new Error("Feature extraction requires an array of strings.");
+                }
                 break;
+
             case 'cluster-texts':
-                await handleClusterTexts(data || [], options);
+                // Narrowing: clustering also expects string[] to generate embeddings first
+                if (Array.isArray(inputData) && typeof inputData[0] === 'string') {
+                    await handleClusterTexts(inputData as string[], options);
+                } else {
+                    throw new Error("Clustering requires an array of strings.");
+                }
                 break;
+
             default:
                 throw new Error(`Unknown task type: ${type}`);
         }

@@ -10,6 +10,8 @@ export const TableView = () => {
     const columns = useWoznyStore((state) => state.columns);
     const fileName = useWoznyStore((state) => state.fileName);
     const setActiveTab = useWoznyStore((state) => state.setActiveTab);
+    const sortConfig = useWoznyStore((state) => state.sortConfig);
+    const toggleSort = useWoznyStore((state) => state.toggleSort);
 
     if (rows.length === 0) {
         return <EmptyState description="Upload a CSV file to view data." />;
@@ -42,6 +44,8 @@ export const TableView = () => {
                     data={rows}
                     columns={columns}
                     className="shadow-2xl"
+                    sortConfig={sortConfig}
+                    onSort={toggleSort}
                 />
             </div>
         </div>

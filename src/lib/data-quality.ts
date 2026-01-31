@@ -11,9 +11,16 @@ const US_STATES = new Set(["AL", "AK", "AZ", "AR", "CA", "CO", "CT", "DE", "FL",
 
 const US_STATES_FULL: Record<string, string> = { "alabama": "AL", "alaska": "AK", "arizona": "AZ", "arkansas": "AR", "california": "CA", "colorado": "CO", "connecticut": "CT", "delaware": "DE", "florida": "FL", "georgia": "GA", "hawaii": "HI", "idaho": "ID", "illinois": "IL", "indiana": "IN", "iowa": "IA", "kansas": "KS", "kentucky": "KY", "louisiana": "LA", "maine": "ME", "maryland": "MD", "massachusetts": "MA", "michigan": "MI", "minnesota": "MN", "mississippi": "MS", "missouri": "MO", "montana": "MT", "nebraska": "NE", "nevada": "NV", "new hampshire": "NH", "new jersey": "NJ", "new mexico": "NM", "new york": "NY", "north carolina": "NC", "north dakota": "ND", "ohio": "OH", "oklahoma": "OK", "oregon": "OR", "pennsylvania": "PA", "rhode island": "RI", "south carolina": "SC", "south dakota": "SD", "tennessee": "TN", "texas": "TX", "utah": "UT", "vermont": "VT", "virginia": "VA", "washington": "WA", "west virginia": "WV", "wisconsin": "WI", "wyoming": "WY", "district of columbia": "DC" };
 
+const CITY_MAP: Record<string, string> = {
+    "la": "Los Angeles", "sf": "San Francisco", "nyc": "New York City",
+    "bklyn": "Brooklyn", "manh": "Manhattan", "philly": "Philadelphia",
+    "atl": "Atlanta", "chi": "Chicago", "sea": "Seattle", "mia": "Miami",
+    "bos": "Boston", "dal": "Dallas", "dc": "Washington D.C.", "sd": "San Diego",
+    "pdx": "Portland", "austin": "Austin"
+};
+
 const NORMALIZATION_DICTIONARY: Record<string, string> = {
     "st": "Street", "st.": "Street", "ave": "Avenue", "ave.": "Avenue", "rd": "Road", "rd.": "Road", "blvd": "Boulevard", "blvd.": "Boulevard", "dr": "Drive", "dr.": "Drive", "ln": "Lane", "ln.": "Lane", "ct": "Court", "ct.": "Court", "pl": "Place", "pl.": "Place",
-    "bklyn": "Brooklyn", "manh": "Manhattan", "philly": "Philadelphia", "atl": "Atlanta", "chi": "Chicago",
     "mgr": "Manager", "dept": "Department", "asst": "Assistant", "dir": "Director", "vp": "Vice President", "v.p.": "Vice President"
 };
 
@@ -39,8 +46,15 @@ export const applyDictionary = (str: string, context: ColumnContext = 'GENERAL')
     if (!str) return str;
     return str.split(/(\s+|,|\.|\/)/).map(token => {
         const lo = token.toLowerCase();
-        if ((lo === 'la' || lo === 'la.') && context === 'CITY') return 'Los Angeles';
         const clean = lo.endsWith('.') ? lo.slice(0, -1) : lo;
+
+        // 1. Context-Specific City Expansion
+        if (context === 'CITY') {
+            if (CITY_MAP[lo]) return CITY_MAP[lo];
+            if (CITY_MAP[clean]) return CITY_MAP[clean];
+        }
+
+        // 2. General Expansion (Address/Roles)
         return NORMALIZATION_DICTIONARY[lo] || NORMALIZATION_DICTIONARY[clean] || token;
     }).join('');
 };
@@ -83,7 +97,7 @@ export const autoFixRow = (row: RowData, columns: string[], rowIssues: AnalysisI
         }
         else if (loCol.match(/date|dob|start|end|joined/)) val = normalizeDate(val);
         else if (loCol.match(/price|cost|amount|fee|revenue|salary/)) val = normalizeCurrency(val);
-        else if (loCol.match(/name|address|city|street|company|borough|role|dept|title|status/)) {
+        else if (loCol.match(/name|address|city|street|company|borough|role|dept|title|status|method|payment|category|type|industry|product|service|gender|level|group|source|country|region|county|brand|model|color|material|tag|office|position|org/)) {
             val = toTitleCase(applyDictionary(val, context));
         }
         newRow[col] = val;

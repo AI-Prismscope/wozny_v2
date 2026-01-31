@@ -15,6 +15,8 @@ export const WorkshopView = () => {
     const ignoredColumns = useWoznyStore((state) => state.ignoredColumns);
     const showHiddenColumns = useWoznyStore((state) => state.showHiddenColumns);
     const splittableColumns = useWoznyStore((state) => state.splittableColumns);
+    const sortConfig = useWoznyStore((state) => state.sortConfig);
+    const toggleSort = useWoznyStore((state) => state.toggleSort);
 
     const setActiveTab = useWoznyStore((state) => state.setActiveTab);
     const updateCell = useWoznyStore((state) => state.updateCell);
@@ -349,6 +351,8 @@ export const WorkshopView = () => {
                         onToggleIgnore={useWoznyStore((state) => state.toggleIgnoreColumn)}
                         onSplitColumn={handleSplitClick}
                         splittableColumns={splittableColumns}
+                        sortConfig={sortConfig}
+                        onSort={toggleSort}
                     />
                 </div>
             </div>
