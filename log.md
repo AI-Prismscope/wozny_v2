@@ -317,3 +317,10 @@
 **Action:** `Implemented Data-Aware Smart Split`
 **Details:** `Evolved Smart Split from a hardcoded address rule into a multi-strategy engine. Added getSplittableType for auto-detection and parseFullName for semantic name decomposition. Updated DataGrid UI to conditionally show the split icon based on detected splittability.`
 **Impact:** `Users now have intelligent, context-aware data splitting that handles both Addresses and Names while avoiding clutter on non-splittable columns.`
+---
+**Timestamp:** `2026-01-31 15:10:00`
+**Category:** `FEATURE`
+**Status:** `SOLVED`
+**Action:** `Implemented Dictionary-Based Normalization Engine`
+**Details:** `Replaced legacy hardcoded address expansion with a scalable, token-aware normalization engine. Created central NORMALIZATION_DICTIONARY and applyDictionary utility. Expanded detection and remediation whitelists to include Location, Role, Title, and Dept.`
+**Impact:** `Significantly improved data standardization across all text-heavy columns, including addresses, roles, and organizational details.`

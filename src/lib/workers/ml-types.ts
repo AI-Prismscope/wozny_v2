@@ -1,19 +1,31 @@
+/**
+ * All valid task identifiers for the ML Worker.
+ */
+export type MLTaskType =
+    | 'feature-extraction'
+    | 'cluster-texts'
+    | 'loading-model'
+    | 'computing-embeddings';
 
-export type MLTaskType = 'feature-extraction' | 'clustering' | 'cluster-texts';
-
+/**
+ * Structured request for the ML Worker.
+ */
 export interface MLRequest {
     type: MLTaskType;
     modelId?: string;
-    data?: any; // strings[] usually, or embeddings[]
+    data?: string[] | Float32Array[]; // Explicitly typed for embeddings or raw text
     options?: {
-        k?: number; // For clustering
+        k?: number; // Number of clusters for K-Means
     };
 }
 
+/**
+ * Structured response from the ML Worker.
+ */
 export interface MLResponse {
     status: 'ready' | 'working' | 'complete' | 'error';
-    task?: MLTaskType;
-    data?: any;
+    task?: MLTaskType; // Now includes sub-tasks like 'loading-model'
+    data?: any; // The result (e.g., cluster IDs or embeddings)
     error?: string;
-    progress?: number;
+    progress?: number; // 0 to 100
 }

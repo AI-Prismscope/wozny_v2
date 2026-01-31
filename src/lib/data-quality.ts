@@ -1,406 +1,141 @@
 import { RowData, AnalysisIssue } from './store/useWoznyStore';
 
-// --- CONSTANTS ---
+// --- CONSTANTS & REGEX ---
 const ISO_DATE_REGEX = /^\d{4}-\d{2}-\d{2}$/;
 const NON_ISO_DATE_REGEX = /^(?:\d{1,2}[-/]\d{1,2}[-/]\d{2,4})|(?:\b(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]* \d{1,2}(?:st|nd|rd|th)?,? \d{4})$/i;
-
 const CURRENCY_SYMBOL_REGEX = /[$€£¥₿]/;
 const URL_REGEX = /^https?:\/\/[^\s/$.?#].[^\s]*$/i;
 const BROKEN_URL_REGEX = /^(www\.|[a-z0-9](d+[a-z0-9])+\.[a-z]{2,})/i;
 
-const US_STATES = new Set([
-    "AL", "AK", "AZ", "AR", "CA", "CO", "CT", "DE", "FL", "GA",
-    "HI", "ID", "IL", "IN", "IA", "KS", "KY", "LA", "ME", "MD",
-    "MA", "MI", "MN", "MS", "MO", "MT", "NE", "NV", "NH", "NJ",
-    "NM", "NY", "NC", "ND", "OH", "OK", "OR", "PA", "RI", "SC",
-    "SD", "TN", "TX", "UT", "VT", "VA", "WA", "WV", "WI", "WY",
-    "DC"
-]);
+const US_STATES = new Set(["AL", "AK", "AZ", "AR", "CA", "CO", "CT", "DE", "FL", "GA", "HI", "ID", "IL", "IN", "IA", "KS", "KY", "LA", "ME", "MD", "MA", "MI", "MN", "MS", "MO", "MT", "NE", "NV", "NH", "NJ", "NM", "NY", "NC", "ND", "OH", "OK", "OR", "PA", "RI", "SC", "SD", "TN", "TX", "UT", "VT", "VA", "WA", "WV", "WI", "WY", "DC"]);
 
-const US_STATES_FULL = {
-    "alabama": "AL", "alaska": "AK", "arizona": "AZ", "arkansas": "AR", "california": "CA",
-    "colorado": "CO", "connecticut": "CT", "delaware": "DE", "florida": "FL", "georgia": "GA",
-    "hawaii": "HI", "idaho": "ID", "illinois": "IL", "indiana": "IN", "iowa": "IA",
-    "kansas": "KS", "kentucky": "KY", "louisiana": "LA", "maine": "ME", "maryland": "MD",
-    "massachusetts": "MA", "michigan": "MI", "minnesota": "MN", "mississippi": "MS", "missouri": "MO",
-    "montana": "MT", "nebraska": "NE", "nevada": "NV", "new hampshire": "NH", "new jersey": "NJ",
-    "new mexico": "NM", "new york": "NY", "north carolina": "NC", "north dakota": "ND", "ohio": "OH",
-    "oklahoma": "OK", "oregon": "OR", "pennsylvania": "PA", "rhode island": "RI", "south carolina": "SC",
-    "south dakota": "SD", "tennessee": "TN", "texas": "TX", "utah": "UT", "vermont": "VT",
-    "virginia": "VA", "washington": "WA", "west virginia": "WV", "wisconsin": "WI", "wyoming": "WY",
-    "district of columbia": "DC"
+const US_STATES_FULL: Record<string, string> = { "alabama": "AL", "alaska": "AK", "arizona": "AZ", "arkansas": "AR", "california": "CA", "colorado": "CO", "connecticut": "CT", "delaware": "DE", "florida": "FL", "georgia": "GA", "hawaii": "HI", "idaho": "ID", "illinois": "IL", "indiana": "IN", "iowa": "IA", "kansas": "KS", "kentucky": "KY", "louisiana": "LA", "maine": "ME", "maryland": "MD", "massachusetts": "MA", "michigan": "MI", "minnesota": "MN", "mississippi": "MS", "missouri": "MO", "montana": "MT", "nebraska": "NE", "nevada": "NV", "new hampshire": "NH", "new jersey": "NJ", "new mexico": "NM", "new york": "NY", "north carolina": "NC", "north dakota": "ND", "ohio": "OH", "oklahoma": "OK", "oregon": "OR", "pennsylvania": "PA", "rhode island": "RI", "south carolina": "SC", "south dakota": "SD", "tennessee": "TN", "texas": "TX", "utah": "UT", "vermont": "VT", "virginia": "VA", "washington": "WA", "west virginia": "WV", "wisconsin": "WI", "wyoming": "WY", "district of columbia": "DC" };
+
+const NORMALIZATION_DICTIONARY: Record<string, string> = {
+    "st": "Street", "st.": "Street", "ave": "Avenue", "ave.": "Avenue", "rd": "Road", "rd.": "Road", "blvd": "Boulevard", "blvd.": "Boulevard", "dr": "Drive", "dr.": "Drive", "ln": "Lane", "ln.": "Lane", "ct": "Court", "ct.": "Court", "pl": "Place", "pl.": "Place",
+    "bklyn": "Brooklyn", "manh": "Manhattan", "philly": "Philadelphia", "atl": "Atlanta", "chi": "Chicago",
+    "mgr": "Manager", "dept": "Department", "asst": "Assistant", "dir": "Director", "vp": "Vice President", "v.p.": "Vice President"
 };
 
-// --- HELPER FUNCTIONS ---
+export type ColumnContext = 'CITY' | 'STATE' | 'GENERAL';
 
-export const toTitleCase = (str: string): string => {
-    return str.replace(
-        /\w\S*/g,
-        (txt) => txt.charAt(0).toUpperCase() + txt.substr(1).toLowerCase()
-    );
+// --- UTILITIES ---
+
+export const getColumnContext = (values: string[], columnName: string): ColumnContext => {
+    const lo = columnName.toLowerCase();
+    if (lo.includes('city') || lo.includes('borough') || lo.includes('town')) return 'CITY';
+    if (lo.includes('state') || lo === 'st' || lo.includes('code')) return 'STATE';
+
+    const sample = values.slice(0, 50).filter(Boolean);
+    if (sample.length === 0) return 'GENERAL';
+
+    const stateMatches = sample.filter(v => /^[A-Z]{2}$/.test(v)).length;
+    return (stateMatches > sample.length * 0.7) ? 'STATE' : 'GENERAL';
 };
 
-export const normalizePhone = (str: string): string => {
-    const cleaned = str.replace(/\D/g, '');
-    if (cleaned.length === 10) {
-        return `(${cleaned.slice(0, 3)}) ${cleaned.slice(3, 6)}-${cleaned.slice(6)}`;
-    }
-    return str;
-};
+export const toTitleCase = (str: string): string => str.replace(/\w\S*/g, (t) => t.charAt(0).toUpperCase() + t.substring(1).toLowerCase());
 
-export const expandAddress = (str: string): string => {
-    return str.replace(/\b(St|Ave|Rd|Blvd|Dr|Ln|Ct|Pl)\b\.?$/i, (match) => {
-        const clean = match.replace('.', '').toLowerCase();
-        const map: Record<string, string> = {
-            'st': 'Street',
-            'ave': 'Avenue',
-            'rd': 'Road',
-            'blvd': 'Boulevard',
-            'dr': 'Drive',
-            'ln': 'Lane',
-            'ct': 'Court',
-            'pl': 'Place'
-        };
-        return map[clean] || match;
-    });
+export const applyDictionary = (str: string, context: ColumnContext = 'GENERAL'): string => {
+    if (!str) return str;
+    return str.split(/(\s+|,|\.|\/)/).map(token => {
+        const lo = token.toLowerCase();
+        if ((lo === 'la' || lo === 'la.') && context === 'CITY') return 'Los Angeles';
+        const clean = lo.endsWith('.') ? lo.slice(0, -1) : lo;
+        return NORMALIZATION_DICTIONARY[lo] || NORMALIZATION_DICTIONARY[clean] || token;
+    }).join('');
 };
 
 export const normalizeDate = (str: string): string => {
-    const trimmed = str.trim();
-    if (!trimmed) return str;
-
-    // 1. Try native Date.parse
-    const timestamp = Date.parse(trimmed);
-    if (!isNaN(timestamp)) {
-        const d = new Date(timestamp);
-        return d.toISOString().split('T')[0];
+    const ts = Date.parse(str.trim());
+    if (isNaN(ts)) {
+        const match = str.match(/^(\d{1,2})[-/](\d{1,2})[-/](\d{2,4})$/);
+        if (match) {
+            let [_, m, d, y] = match;
+            y = y.length === 2 ? `20${y}` : y;
+            return `${y}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`;
+        }
+        return str;
     }
-
-    // 2. Fallback: Manual numeric parse (MM/DD/YYYY or DD/MM/YYYY)
-    // We assume US-style MM/DD for ambiguity unless we want to get more complex
-    const numericMatch = trimmed.match(/^(\d{1,2})[-/](\d{1,2})[-/](\d{2,4})$/);
-    if (numericMatch) {
-        let [_, m, d, y] = numericMatch;
-        if (y.length === 2) y = `20${y}`; // 21st century bias
-        const pad = (n: string) => n.length === 1 ? `0${n}` : n;
-        return `${y}-${pad(m)}-${pad(d)}`;
-    }
-
-    return str;
+    return new Date(ts).toISOString().split('T')[0];
 };
 
 export const normalizeCurrency = (str: string): string => {
-    // 1. Remove everything except digits, decimal point, and negative sign
-    const cleaned = str.replace(/[^\d.-]/g, '');
-
-    // 2. Parse as float
-    const num = parseFloat(cleaned);
-
-    // 3. If valid, return standardized fixed precision (Ensures rounding half up)
-    if (!isNaN(num)) {
-        const rounded = Math.round(num * 100) / 100;
-        return rounded.toFixed(2);
-    }
-
-    return str;
+    const num = parseFloat(str.replace(/[^\d.-]/g, ''));
+    return !isNaN(num) ? (Math.round(num * 100) / 100).toFixed(2) : str;
 };
 
-/**
- * Applies cleaning rules to a single row.
- * Returns a NEW row object.
- * Only touches columns that have a FORMAT issue.
- */
+// --- ANALYSIS & FIXING ---
+
 export const autoFixRow = (row: RowData, columns: string[], rowIssues: AnalysisIssue[]): RowData => {
     const newRow = { ...row };
-
     columns.forEach(col => {
-        let val = newRow[col] || '';
-        const lowerCol = col.toLowerCase();
+        let val = String(newRow[col] || '').trim().replace(/\s+/g, ' ');
+        if (!val || (val.startsWith('[') && val.endsWith(']'))) return;
+        if (!rowIssues.some(i => i.column === col && i.issueType === 'FORMAT')) return;
 
-        // Skip if it's a MISSING placeholder
-        if (val.startsWith('[') && val.endsWith(']')) return;
+        const loCol = col.toLowerCase();
+        const context = getColumnContext([], col);
 
-        // ONLY touch columns that actually have a FORMAT issue
-        const hasIssue = rowIssues.some(i => i.column === col && i.issueType === 'FORMAT');
-        if (!hasIssue) return;
-
-        // Rule 4: Whitespace Trimming
-        val = val.trim().replace(/\s+/g, ' ');
-
-        // Rule 3: Email Sanitization
-        if (lowerCol.includes('email')) {
-            val = val.toLowerCase();
+        if (loCol.includes('email')) val = val.toLowerCase();
+        else if (loCol.match(/phone|tel|cell/)) val = val.replace(/\D/g, '').replace(/(\d{3})(\d{3})(\d{4})/, '($1) $2-$3');
+        else if (loCol.match(/state|^st$|_state/)) {
+            val = val.length === 2 ? val.toUpperCase() : (US_STATES_FULL[val.toLowerCase()] || val);
         }
-        // Rule 2: Phone Normalization
-        else if (lowerCol.includes('phone') || lowerCol.includes('tel') || lowerCol.includes('cell')) {
-            val = normalizePhone(val);
+        else if (loCol.match(/date|dob|start|end|joined/)) val = normalizeDate(val);
+        else if (loCol.match(/price|cost|amount|fee|revenue|salary/)) val = normalizeCurrency(val);
+        else if (loCol.match(/name|address|city|street|company|borough|role|dept|title|status/)) {
+            val = toTitleCase(applyDictionary(val, context));
         }
-        // State Special Rule (Extracted columns or original)
-        else if (lowerCol === 'state' || lowerCol === 'st' || lowerCol.endsWith('_state')) {
-            // Force 2-letter uppercase if valid
-            if (val.length === 2) {
-                val = val.toUpperCase();
-            } else if ((US_STATES_FULL as any)[val.toLowerCase()]) {
-                val = (US_STATES_FULL as any)[val.toLowerCase()];
-            }
-        }
-        // Rule 1: Title Casing
-        else if (
-            lowerCol.includes('name') ||
-            lowerCol.includes('address') ||
-            lowerCol.includes('city') ||
-            lowerCol.includes('street') ||
-            lowerCol.includes('company') ||
-            lowerCol.includes('borough') ||
-            lowerCol.includes('method') ||
-            lowerCol.includes('type') ||
-            lowerCol.includes('status') ||
-            lowerCol.includes('category') ||
-            lowerCol.includes('payment') ||
-            lowerCol.includes('role')
-        ) {
-            val = toTitleCase(val);
-            if (lowerCol.includes('address') || lowerCol.includes('street')) {
-                val = expandAddress(val);
-            }
-        }
-        // Rule 5: Date Normalization
-        else if (lowerCol.includes('date') || lowerCol.includes('dob') || lowerCol.includes('start') || lowerCol.includes('end') || lowerCol.includes('joined')) {
-            val = normalizeDate(val);
-        }
-        // Rule 6: Currency Normalization
-        else if (
-            lowerCol.includes('price') ||
-            lowerCol.includes('cost') ||
-            lowerCol.includes('amount') ||
-            lowerCol.includes('fee') ||
-            lowerCol.includes('revenue') ||
-            lowerCol.includes('salary')
-        ) {
-            val = normalizeCurrency(val);
-        }
-
         newRow[col] = val;
     });
-
     return newRow;
 };
 
-// --- MAIN ANALYSIS FUNCTION ---
-
 export const runDeterministicAnalysis = (rows: RowData[], columns: string[]): AnalysisIssue[] => {
     const issues: AnalysisIssue[] = [];
+    const contexts: Record<string, ColumnContext> = {};
+    columns.forEach(c => contexts[c] = getColumnContext(rows.map(r => String(r[c] || '')), c));
 
-    // Heuristic: Identify potential "Identity" columns for partial matching
-    const identityCols = columns.filter(c => {
-        const lower = c.toLowerCase();
-        return lower.includes('name') || lower.includes('address') || lower.includes('email');
-    });
-
-    const canRunPartialCheck = identityCols.length >= 2;
-
-    // 1. DUPLICATE CHECK (Two-Pass)
+    // Duplicate Check
+    const idCols = columns.filter(c => c.toLowerCase().match(/name|address|email/));
     const exactMap = new Map<string, number[]>();
-    const partialMap = new Map<string, number[]>();
 
-    rows.forEach((row, rowIndex) => {
-        const exactFingerprint = columns
-            .map(col => String(row[col] || '').trim().toLowerCase())
-            .join('|');
-        if (!exactMap.has(exactFingerprint)) exactMap.set(exactFingerprint, []);
-        exactMap.get(exactFingerprint)!.push(rowIndex);
-
-        if (canRunPartialCheck) {
-            const partialFingerprint = identityCols
-                .map(col => String(row[col] || '').trim().toLowerCase())
-                .join('|');
-            if (!partialMap.has(partialFingerprint)) partialMap.set(partialFingerprint, []);
-            partialMap.get(partialFingerprint)!.push(rowIndex);
-        }
+    rows.forEach((row, idx) => {
+        const finger = columns.map(c => String(row[c] || '').trim().toLowerCase()).join('|');
+        if (!exactMap.has(finger)) exactMap.set(finger, []);
+        exactMap.get(finger)!.push(idx);
     });
 
-    // Pass 2: Analysis (Flagging)
-    exactMap.forEach((rowIndices) => {
-        if (rowIndices.length > 1) {
-            rowIndices.forEach((rowIndex, i) => {
-                issues.push({
-                    rowId: rowIndex,
-                    column: columns[0],
-                    issueType: "DUPLICATE",
-                    suggestion: i === 0 ? "Potential Duplicate (Original?)" : "Potential Duplicate (Copy)"
-                });
-            });
-        }
+    exactMap.forEach(indices => {
+        if (indices.length > 1) indices.forEach((idx, i) => issues.push({ rowId: idx, column: columns[0], issueType: "DUPLICATE", suggestion: i === 0 ? "Original" : "Duplicate" }));
     });
 
-    partialMap.forEach((rowIndices) => {
-        if (rowIndices.length > 1) {
-            rowIndices.forEach((rowIndex, i) => {
-                const isExact = issues.some(iss => iss.rowId === rowIndex && iss.issueType === 'DUPLICATE');
-                if (!isExact) {
-                    issues.push({
-                        rowId: rowIndex,
-                        column: identityCols[0],
-                        issueType: "DUPLICATE",
-                        suggestion: "Potential Partial Duplicate (Same Name/Address)"
-                    });
-                }
-            });
-        }
-    });
-
-    // Pass 3: Column Checks (Missing, Format, Validity)
-    rows.forEach((row, rowIndex) => {
+    // Per-Cell Logic
+    rows.forEach((row, idx) => {
         columns.forEach(col => {
-            const value = row[col];
-            const strVal = String(value || '').trim();
-            const lowerCol = col.toLowerCase();
+            const val = String(row[col] || '').trim();
+            const loVal = val.toLowerCase();
+            const loCol = col.toLowerCase();
 
-            // 2. MISSING CHECK
-            const isPlaceholder = strVal.startsWith('[') && strVal.endsWith(']');
-            const isMissingTerm = ['null', 'n/a', 'undefined', 'missing', 'tbd'].includes(strVal.toLowerCase().replace(/[\[\]]/g, ''));
-
-            if (!value || strVal === '' || isPlaceholder || isMissingTerm) {
-                issues.push({
-                    rowId: rowIndex,
-                    column: col,
-                    issueType: "MISSING",
-                    suggestion: `Provide value for ${col}`
-                });
+            if (!val || ['null', 'n/a', 'undefined', 'missing', 'tbd'].includes(loVal.replace(/[\[\]]/g, ''))) {
+                issues.push({ rowId: idx, column: col, issueType: "MISSING", suggestion: `Missing ${col}` });
                 return;
             }
 
-            // 3. FORMAT & VALIDITY CHECK
-
-            // A) Phone Format (Strict)
-            if (lowerCol.includes('phone') || lowerCol.includes('tel') || lowerCol.includes('cell')) {
-                if (strVal.length > 5 && !/^\(\d{3}\) \d{3}-\d{4}$/.test(strVal)) {
-                    issues.push({
-                        rowId: rowIndex,
-                        column: col,
-                        issueType: "FORMAT",
-                        suggestion: "Standardize phone format"
-                    });
-                }
+            // Formatting Checks
+            if (loCol.match(/phone|tel|cell/) && !/^\(\d{3}\) \d{3}-\d{4}$/.test(val)) issues.push({ rowId: idx, column: col, issueType: "FORMAT", suggestion: "Standardize Phone" });
+            else if (loCol.match(/date|dob|start|end|joined/) && !ISO_DATE_REGEX.test(val)) issues.push({ rowId: idx, column: col, issueType: "FORMAT", suggestion: "Use YYYY-MM-DD" });
+            else if (loCol.match(/price|cost|amount|fee|revenue|salary/) && (CURRENCY_SYMBOL_REGEX.test(val) || !/^-?\d+\.\d{2}$/.test(val.replace(/[$,€£¥\s,]/g, '')))) {
+                issues.push({ rowId: idx, column: col, issueType: "FORMAT", suggestion: "Standardize Currency" });
             }
-
-            // B) Date Format (ISO 8601)
-            else if (lowerCol.includes('date') || lowerCol.includes('dob') || lowerCol.includes('start') || lowerCol.includes('end') || lowerCol.includes('joined')) {
-                if (!ISO_DATE_REGEX.test(strVal)) {
-                    // Check if it's a parseable date but not ISO
-                    if (NON_ISO_DATE_REGEX.test(strVal) || !isNaN(Date.parse(strVal))) {
-                        issues.push({
-                            rowId: rowIndex,
-                            column: col,
-                            issueType: "FORMAT",
-                            suggestion: "Convert to YYYY-MM-DD"
-                        });
-                    }
-                }
+            else if (loCol.match(/state|^st$|_state/)) {
+                if (val.length === 2 && !US_STATES.has(val.toUpperCase())) issues.push({ rowId: idx, column: col, issueType: "VALIDITY", suggestion: "Invalid State" });
+                else if (val.length > 2 && US_STATES_FULL[loVal]) issues.push({ rowId: idx, column: col, issueType: "FORMAT", suggestion: "Use 2-letter Code" });
             }
-
-            // C) Currency Format
-            else if (lowerCol.includes('price') || lowerCol.includes('cost') || lowerCol.includes('amount') || lowerCol.includes('fee') || lowerCol.includes('revenue') || lowerCol.includes('salary')) {
-                const hasSymbol = CURRENCY_SYMBOL_REGEX.test(strVal);
-                const isNumeric = !isNaN(parseFloat(strVal.replace(/[$,€£¥\s,]/g, '')));
-                const hasTwoDecimals = /^-?\d+\.\d{2}$/.test(strVal.replace(/[$,€£¥\s,]/g, ''));
-
-                if (hasSymbol || (isNumeric && !hasTwoDecimals)) {
-                    issues.push({
-                        rowId: rowIndex,
-                        column: col,
-                        issueType: "FORMAT",
-                        suggestion: hasSymbol ? "Remove currency symbol" : "Standardize to 2 decimals"
-                    });
-                }
-            }
-
-            // D) URL Validation
-            else if (lowerCol.includes('url') || lowerCol.includes('website') || lowerCol.includes('link')) {
-                if (strVal.length > 3 && !URL_REGEX.test(strVal)) {
-                    if (BROKEN_URL_REGEX.test(strVal)) {
-                        issues.push({
-                            rowId: rowIndex,
-                            column: col,
-                            issueType: "FORMAT",
-                            suggestion: "Add http:// prefix"
-                        });
-                    } else {
-                        issues.push({
-                            rowId: rowIndex,
-                            column: col,
-                            issueType: "FORMAT",
-                            suggestion: "Invalid URL format"
-                        });
-                    }
-                }
-            }
-
-            // E) US State Validation
-            else if (lowerCol === 'state' || lowerCol === 'st' || lowerCol.includes('state code') || lowerCol.endsWith('_state')) {
-                if (strVal.length === 2) {
-                    if (!US_STATES.has(strVal.toUpperCase())) {
-                        issues.push({
-                            rowId: rowIndex,
-                            column: col,
-                            issueType: "VALIDITY",
-                            suggestion: "Unknown State Code"
-                        });
-                    }
-                }
-                else if (strVal.length > 2) {
-                    if ((US_STATES_FULL as any)[strVal.toLowerCase()]) {
-                        issues.push({
-                            rowId: rowIndex,
-                            column: col,
-                            issueType: "FORMAT",
-                            suggestion: "Convert to 2-letter Code"
-                        });
-                    }
-                }
-            }
-
-            // F) General Text Checks
-            else if (strVal.length >= 3 && isNaN(Number(strVal))) {
-                if (lowerCol.includes('email')) {
-                    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(strVal)) {
-                        issues.push({
-                            rowId: rowIndex,
-                            column: col,
-                            issueType: "FORMAT",
-                            suggestion: "Invalid email format"
-                        });
-                    }
-                }
-                else if (lowerCol.includes('address')) {
-                    if (/\b(St|Ave|Rd|Blvd|Dr|Ln|Ct|Pl)\b\.?$/i.test(strVal)) {
-                        issues.push({
-                            rowId: rowIndex,
-                            column: col,
-                            issueType: "FORMAT",
-                            suggestion: "Expand abbreviation"
-                        });
-                    }
-                }
-                const hasLetters = /[a-zA-Z]/.test(strVal);
-                if (hasLetters) {
-                    if (strVal === strVal.toUpperCase()) {
-                        issues.push({
-                            rowId: rowIndex,
-                            column: col,
-                            issueType: "FORMAT",
-                            suggestion: "Convert to Title Case"
-                        });
-                    }
-                    else if (strVal === strVal.toLowerCase()) {
-                        issues.push({
-                            rowId: rowIndex,
-                            column: col,
-                            issueType: "FORMAT",
-                            suggestion: "Convert to Title Case"
-                        });
-                    }
-                }
+            else if (loCol.match(/url|website|link/) && !URL_REGEX.test(val)) issues.push({ rowId: idx, column: col, issueType: "FORMAT", suggestion: "Fix URL" });
+            else if (/[a-zA-Z]/.test(val)) {
+                const normalized = toTitleCase(applyDictionary(val, contexts[col]));
+                if (val !== normalized) issues.push({ rowId: idx, column: col, issueType: "FORMAT", suggestion: "Fix Casing/Abbr" });
             }
         });
     });

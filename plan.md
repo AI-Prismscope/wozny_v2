@@ -68,3 +68,8 @@
   - Auto-detection of "Splittable" columns (Address vs Name).
   - Semantic Name Parser (First, Middle, Last).
   - UI refinement: Only show split icon on relevant columns.
+### Phase 10: Dictionary-Based Normalization (Complete)
+- [x] **Task 10.1: Standardized Abbreviation Engine**
+  - Centralized `NORMALIZATION_DICTIONARY` for common abbreviations.
+  - Token-aware expansion engine (`applyDictionary`).
+  - Broad coverage for Addresses, Cities, Roles, and Departments.
