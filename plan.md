@@ -58,3 +58,8 @@
 - [x] **Task 7.3: Smart UX**
   - Underscore-aware header wrapping.
   - Interactive header text selection enabled.
+### Phase 8: Financial Remediation (Complete)
+- [x] **Task 8.1: Currency Normalization**
+  - Robust Currency Normalizer (`normalizeCurrency`).
+  - Auto-Fix integration for price, cost, and amount columns.
+  - Standardized decimal precision (2 decimal places) with robust rounding.
