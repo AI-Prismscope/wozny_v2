@@ -303,3 +303,10 @@
 **Action:** `Implemented Smart Typography (Underscore Wrapping & Selection)`
 **Details:** `Inserted zero-width spaces (\u200B) after underscores in headers to enable browser wrapping for snake_case column names. Removed 'select-none' to restore native text selection for headers.`
 **Impact:** `Significantly improved header readability and user utility.`
+---
+**Timestamp:** `2026-01-31 14:38:00`
+**Category:** `LOGIC_FIX`
+**Status:** `SOLVED`
+**Action:** `Implemented Financial Data Remediation (Currency Auto-Fix)`
+**Details:** `Developed normalizeCurrency utility to strip symbols ($, €, £, etc.) and thousand-separator commas. Refined runDeterministicAnalysis to flag missing precision. Standardized output to 2 decimal places with robust Math.round logic.`
+**Impact:** `Financial columns are now perfectly standardized for export and calculation.`

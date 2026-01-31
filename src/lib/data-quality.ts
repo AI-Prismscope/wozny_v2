@@ -89,6 +89,22 @@ export const normalizeDate = (str: string): string => {
     return str;
 };
 
+export const normalizeCurrency = (str: string): string => {
+    // 1. Remove everything except digits, decimal point, and negative sign
+    const cleaned = str.replace(/[^\d.-]/g, '');
+
+    // 2. Parse as float
+    const num = parseFloat(cleaned);
+
+    // 3. If valid, return standardized fixed precision (Ensures rounding half up)
+    if (!isNaN(num)) {
+        const rounded = Math.round(num * 100) / 100;
+        return rounded.toFixed(2);
+    }
+
+    return str;
+};
+
 /**
  * Applies cleaning rules to a single row.
  * Returns a NEW row object.
@@ -151,6 +167,17 @@ export const autoFixRow = (row: RowData, columns: string[], rowIssues: AnalysisI
         // Rule 5: Date Normalization
         else if (lowerCol.includes('date') || lowerCol.includes('dob') || lowerCol.includes('start') || lowerCol.includes('end') || lowerCol.includes('joined')) {
             val = normalizeDate(val);
+        }
+        // Rule 6: Currency Normalization
+        else if (
+            lowerCol.includes('price') ||
+            lowerCol.includes('cost') ||
+            lowerCol.includes('amount') ||
+            lowerCol.includes('fee') ||
+            lowerCol.includes('revenue') ||
+            lowerCol.includes('salary')
+        ) {
+            val = normalizeCurrency(val);
         }
 
         newRow[col] = val;
@@ -274,12 +301,16 @@ export const runDeterministicAnalysis = (rows: RowData[], columns: string[]): An
 
             // C) Currency Format
             else if (lowerCol.includes('price') || lowerCol.includes('cost') || lowerCol.includes('amount') || lowerCol.includes('fee') || lowerCol.includes('revenue') || lowerCol.includes('salary')) {
-                if (CURRENCY_SYMBOL_REGEX.test(strVal)) {
+                const hasSymbol = CURRENCY_SYMBOL_REGEX.test(strVal);
+                const isNumeric = !isNaN(parseFloat(strVal.replace(/[$,€£¥\s,]/g, '')));
+                const hasTwoDecimals = /^-?\d+\.\d{2}$/.test(strVal.replace(/[$,€£¥\s,]/g, ''));
+
+                if (hasSymbol || (isNumeric && !hasTwoDecimals)) {
                     issues.push({
                         rowId: rowIndex,
                         column: col,
                         issueType: "FORMAT",
-                        suggestion: "Remove currency symbol"
+                        suggestion: hasSymbol ? "Remove currency symbol" : "Standardize to 2 decimals"
                     });
                 }
             }
