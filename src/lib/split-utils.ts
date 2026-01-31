@@ -1,8 +1,11 @@
 
 /**
+ * Types of data we can intelligently split
+ */
+export type SplitType = 'ADDRESS' | 'NAME' | 'NONE';
+
+/**
  * Result of a split operation.
- * Keys = New Column Names (e.g. "Address_Street")
- * Values = The extracted value for this row
  */
 export type SplitResult = Record<string, string>;
 
@@ -16,9 +19,77 @@ export interface AddressComponents {
     Zip: string;
 }
 
+/**
+ * Standard Name Components
+ */
+export interface NameComponents {
+    First: string;
+    Middle: string;
+    Last: string;
+}
+
 import { US_STATES, ZIP_LOOKUP } from './us-data';
 
+/**
+ * Determines if a column is splittable and what strategy to use.
+ * Samples first 20 rows.
+ */
+export const getSplittableType = (values: string[]): SplitType => {
+    if (!values || values.length === 0) return 'NONE';
+
+    let addressCount = 0;
+    let nameCount = 0;
+    const sampleSize = Math.min(values.length, 20);
+
+    for (let i = 0; i < sampleSize; i++) {
+        const val = (values[i] || '').trim();
+        if (!val) continue;
+
+        // Address Check (Street Endings or Zip/State codes)
+        if (
+            val.match(/\b(\d{5}(?:-\d{4})?)\b$/) || // Ends in Zip
+            val.match(/\b(St|Ave|Rd|Blvd|Ln|Dr|Way|Ct|Pl|Street|Avenue|Road|Drive|Lane)\b\.?/i) || // Contains Street Suffix
+            val.split(',').length >= 3 // Likely Comma Separated Address
+        ) {
+            addressCount++;
+        }
+        // Name Check (2-3 Words, No digits)
+        else if (
+            val.split(/\s+/).length >= 2 &&
+            val.split(/\s+/).length <= 4 &&
+            !/\d/.test(val)
+        ) {
+            nameCount++;
+        }
+    }
+
+    if (addressCount > sampleSize * 0.4) return 'ADDRESS';
+    if (nameCount > sampleSize * 0.4) return 'NAME';
+    return 'NONE';
+};
+
+export const parseFullName = (raw: string): NameComponents | null => {
+    if (!raw || raw.length < 2) return null;
+
+    // Clean common prefixes
+    const clean = raw.replace(/\b(Mr|Ms|Mrs|Dr|Prof)\.?\s+/i, '').trim();
+    const parts = clean.split(/\s+/).filter(p => p.length > 0);
+
+    if (parts.length === 2) {
+        return { First: parts[0], Middle: '', Last: parts[1] };
+    }
+    if (parts.length === 3) {
+        return { First: parts[0], Middle: parts[1], Last: parts[2] };
+    }
+    if (parts.length > 3) {
+        return { First: parts[0], Middle: parts.slice(1, -1).join(' '), Last: parts[parts.length - 1] };
+    }
+
+    return null;
+};
+
 export const parseAddress = (raw: string): AddressComponents | null => {
+    // ... (rest of the existing parseAddress remains same or improved)
     if (!raw || raw.length < 5) return null;
     const clean = raw.trim();
 
@@ -60,7 +131,6 @@ export const parseAddress = (raw: string): AddressComponents | null => {
     if (zipMatch) {
         const zip = zipMatch[1];
 
-        // 2a. Dictionary Lookup
         if (ZIP_LOOKUP[zip]) {
             const { city, state } = ZIP_LOOKUP[zip];
             let remainder = clean.replace(zip, '').trim();
@@ -79,7 +149,6 @@ export const parseAddress = (raw: string): AddressComponents | null => {
             };
         }
 
-        // 2b. State Anchor Heuristic
         const preZip = clean.replace(zip, '').trim();
         const preZipClean = preZip.replace(/,$/, '').trim();
         const lastTwo = preZipClean.slice(-2).toUpperCase();
@@ -118,7 +187,6 @@ export const parseAddress = (raw: string): AddressComponents | null => {
         }
     }
 
-    // Strategy 3: Comma Split BUT No Zip
     if (commaParts.length >= 3) {
         const lastPart = commaParts[commaParts.length - 1].toUpperCase();
         if (US_STATES.has(lastPart)) {
@@ -129,7 +197,6 @@ export const parseAddress = (raw: string): AddressComponents | null => {
         }
     }
 
-    // Strategy 4: Fallback
     return {
         Street: clean,
         City: '[MISSING]',
@@ -138,17 +205,18 @@ export const parseAddress = (raw: string): AddressComponents | null => {
     };
 };
 
-export const splitAddressColumn = (
+export const smartSplitColumn = (
     rows: Record<string, string>[],
-    columnName: string
+    columnName: string,
+    type: SplitType
 ): {
     successCount: number;
     failCount: number;
-    results: (AddressComponents | null)[]
+    results: (Record<string, string> | null)[]
 } => {
     let successCount = 0;
     let failCount = 0;
-    const results: (AddressComponents | null)[] = [];
+    const results: (Record<string, string> | null)[] = [];
 
     rows.forEach(row => {
         const val = row[columnName];
@@ -157,7 +225,10 @@ export const splitAddressColumn = (
             return;
         }
 
-        const parsed = parseAddress(val);
+        let parsed: Record<string, string> | null = null;
+        if (type === 'ADDRESS') parsed = parseAddress(val) as any;
+        else if (type === 'NAME') parsed = parseFullName(val) as any;
+
         if (parsed) {
             successCount++;
             results.push(parsed);

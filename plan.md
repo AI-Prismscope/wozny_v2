@@ -63,3 +63,8 @@
   - Robust Currency Normalizer (`normalizeCurrency`).
   - Auto-Fix integration for price, cost, and amount columns.
   - Standardized decimal precision (2 decimal places) with robust rounding.
+### Phase 9: Data-Aware Smart Split (Complete)
+- [x] **Task 9.1: Multi-Strategy Splitting**
+  - Auto-detection of "Splittable" columns (Address vs Name).
+  - Semantic Name Parser (First, Middle, Last).
+  - UI refinement: Only show split icon on relevant columns.

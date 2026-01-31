@@ -30,6 +30,7 @@ export interface WoznyState {
     ignoredColumns: string[];
     showHiddenColumns: boolean;
     columnWidths: Record<string, number>;
+    splittableColumns: Record<string, 'ADDRESS' | 'NAME' | 'NONE'>;
     // Actions
     setCsvData: (fileName: string, data: RowData[], columns: string[]) => void;
     setAnalysisResults: (issues: AnalysisIssue[]) => void;
@@ -52,17 +53,27 @@ export interface WoznyState {
 }
 
 import { calculateColumnWidths } from '../measure-utils';
+import { getSplittableType } from '../split-utils';
 
 export const useWoznyStore = create<WoznyState>()(
     immer((set) => ({
         rawRows: [],
         rows: [],
         columns: [],
-        fileName: null, issues: [], activeTab: 'about', isAnalyzing: false, userSelection: [], ignoredColumns: [], showHiddenColumns: false, columnWidths: {},
+        fileName: null, issues: [], activeTab: 'about', isAnalyzing: false, userSelection: [], ignoredColumns: [], showHiddenColumns: false, columnWidths: {}, splittableColumns: {},
 
         setCsvData: (fileName, data, columns) => set((state) => {
             state.fileName = fileName; state.rawRows = data; state.rows = data; state.columns = columns;
             state.columnWidths = calculateColumnWidths(data, columns);
+
+            // Detect Splittable Columns
+            const splitMap: Record<string, any> = {};
+            columns.forEach(col => {
+                const values = data.map(r => r[col] || '');
+                splitMap[col] = getSplittableType(values);
+            });
+            state.splittableColumns = splitMap;
+
             const autoIssues = runDeterministicAnalysis(data, columns);
             state.issues = autoIssues;
             state.activeTab = 'report';
@@ -137,52 +148,45 @@ export const useWoznyStore = create<WoznyState>()(
             state.rows.forEach((row, i) => { row[finalName] = values[i] || ''; });
             state.issues = runDeterministicAnalysis(state.rows, state.columns);
             state.columnWidths = calculateColumnWidths(state.rows, state.columns);
+
+            // Update splittable map
+            state.splittableColumns[finalName] = getSplittableType(values);
         }),
 
         splitAddressColumn: async (columnId) => {
-            // We need to import the helper safely
-            const { splitAddressColumn } = await import('../split-utils');
-
-            let successCount = 0;
-            let failCount = 0;
+            const { smartSplitColumn } = await import('../split-utils');
+            let successCount = 0; let failCount = 0;
 
             set((state) => {
-                // 1. Run Logic
-                // NOTE: We pass state.rows which is a Proxy in Immer. 
-                // It's safer to pass a copy or rely on the function being side-effect free (it is).
-                const { results, successCount: s, failCount: f } = splitAddressColumn(state.rows, columnId);
-                successCount = s;
-                failCount = f;
+                const type = state.splittableColumns[columnId];
+                if (type === 'NONE') return;
 
-                // 2. Determine New Column Names
-                // We want: "Address_Street", "Address_City", etc.
-                // Ideally next to the original column? For now, append to end is easier.
-                const newCols = ['Street', 'City', 'State', 'Zip'].map(suffix => `${columnId}_${suffix}`);
+                const { results, successCount: s, failCount: f } = smartSplitColumn(state.rows, columnId, type);
+                successCount = s; failCount = f;
 
-                // Add new columns if not exist
+                const newCols = type === 'ADDRESS'
+                    ? ['Street', 'City', 'State', 'Zip'].map(suffix => `${columnId}_${suffix}`)
+                    : ['First', 'Middle', 'Last'].map(suffix => `${columnId}_${suffix}`);
+
                 newCols.forEach(newCol => {
-                    if (!state.columns.includes(newCol)) {
-                        state.columns.push(newCol);
-                    }
+                    if (!state.columns.includes(newCol)) state.columns.push(newCol);
                 });
 
-                // 3. Populate Rows
                 state.rows.forEach((row, idx) => {
                     const parsed = results[idx];
                     if (parsed) {
-                        row[newCols[0]] = parsed.Street; // Street
-                        row[newCols[1]] = parsed.City;   // City
-                        row[newCols[2]] = parsed.State;  // State
-                        row[newCols[3]] = parsed.Zip;    // Zip
-                    } else {
-                        // Optional: Fill with empty string? Already handled by 'undefined' check usually.
-                        // Maybe mark as [UNPARSEABLE]?
+                        newCols.forEach((colName, colIdx) => {
+                            const keys = Object.keys(parsed);
+                            row[colName] = (parsed as any)[keys[colIdx]] || '';
+                        });
                     }
                 });
 
-                // 4. Re-Analyze & Re-size
                 state.issues = runDeterministicAnalysis(state.rows, state.columns);
                 state.columnWidths = calculateColumnWidths(state.rows, state.columns);
+
+                // All new columns are NONE splittable until re-analyzed or if we want to be deep
+                newCols.forEach(c => { state.splittableColumns[c] = 'NONE'; });
             });
 
             return { success: successCount, fail: failCount };

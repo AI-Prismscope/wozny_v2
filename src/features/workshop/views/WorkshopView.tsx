@@ -14,6 +14,7 @@ export const WorkshopView = () => {
     const issues = useWoznyStore((state) => state.issues);
     const ignoredColumns = useWoznyStore((state) => state.ignoredColumns);
     const showHiddenColumns = useWoznyStore((state) => state.showHiddenColumns);
+    const splittableColumns = useWoznyStore((state) => state.splittableColumns);
 
     const setActiveTab = useWoznyStore((state) => state.setActiveTab);
     const updateCell = useWoznyStore((state) => state.updateCell);
@@ -347,6 +348,7 @@ export const WorkshopView = () => {
                         ignoredColumns={ignoredColumns}
                         onToggleIgnore={useWoznyStore((state) => state.toggleIgnoreColumn)}
                         onSplitColumn={handleSplitClick}
+                        splittableColumns={splittableColumns}
                     />
                 </div>
             </div>
@@ -398,12 +400,18 @@ export const WorkshopView = () => {
                     <div className="bg-white dark:bg-neutral-900 rounded-xl shadow-2xl p-6 w-full max-w-sm border border-neutral-200 dark:border-neutral-800">
                         <h3 className="text-lg font-bold mb-2 text-neutral-900 dark:text-white">Smart Split Column?</h3>
                         <p className="text-sm text-neutral-600 dark:text-neutral-400 mb-6">
-                            This will split <strong>"{splitConfirmation}"</strong> into 4 new columns:
+                            This will split <strong>"{splitConfirmation}"</strong> into new columns:
                             <br />
-                            <code className="text-xs bg-neutral-100 dark:bg-neutral-800 px-1 py-0.5 rounded">Street</code>,
-                            <code className="text-xs bg-neutral-100 dark:bg-neutral-800 px-1 py-0.5 rounded">City</code>,
-                            <code className="text-xs bg-neutral-100 dark:bg-neutral-800 px-1 py-0.5 rounded">State</code>,
-                            <code className="text-xs bg-neutral-100 dark:bg-neutral-800 px-1 py-0.5 rounded">Zip</code>
+                            <div className="flex gap-2 mt-2 flex-wrap">
+                                {(splittableColumns[splitConfirmation] === 'ADDRESS'
+                                    ? ['Street', 'City', 'State', 'Zip']
+                                    : ['First', 'Middle', 'Last']
+                                ).map(tag => (
+                                    <code key={tag} className="text-[10px] bg-purple-50 dark:bg-purple-900/30 text-purple-600 dark:text-purple-300 px-1.5 py-0.5 rounded border border-purple-200 dark:border-purple-800">
+                                        {tag}
+                                    </code>
+                                ))}
+                            </div>
                         </p>
 
                         {isSplitting ? (

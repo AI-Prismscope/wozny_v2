@@ -310,3 +310,10 @@
 **Action:** `Implemented Financial Data Remediation (Currency Auto-Fix)`
 **Details:** `Developed normalizeCurrency utility to strip symbols ($, €, £, etc.) and thousand-separator commas. Refined runDeterministicAnalysis to flag missing precision. Standardized output to 2 decimal places with robust Math.round logic.`
 **Impact:** `Financial columns are now perfectly standardized for export and calculation.`
+---
+**Timestamp:** `2026-01-31 14:55:00`
+**Category:** `FEATURE`
+**Status:** `SOLVED`
+**Action:** `Implemented Data-Aware Smart Split`
+**Details:** `Evolved Smart Split from a hardcoded address rule into a multi-strategy engine. Added getSplittableType for auto-detection and parseFullName for semantic name decomposition. Updated DataGrid UI to conditionally show the split icon based on detected splittability.`
+**Impact:** `Users now have intelligent, context-aware data splitting that handles both Addresses and Names while avoiding clutter on non-splittable columns.`

@@ -15,16 +15,16 @@ interface DataGridProps {
     onDeleteRow?: (rowIndex: number) => void;
     issueMap?: Record<number, Record<string, string>>;
     rowStateMap?: Record<number, 'DUPLICATE' | 'MULTIPLE' | 'Loading'>;
-    columnWidths?: Record<string, number>;
-    // Column Management
     ignoredColumns?: string[];
     onToggleIgnore?: (col: string) => void;
-    onSplitColumn?: (col: string) => void; // New Prop
+    onSplitColumn?: (col: string) => void;
+    splittableColumns?: Record<string, 'ADDRESS' | 'NAME' | 'NONE'>;
+    columnWidths?: Record<string, number>;
 }
 
 export const DataGrid = React.forwardRef<HTMLDivElement, DataGridProps>(({
     data, columns, className, onCellClick, onDeleteRow, issueMap, rowStateMap,
-    ignoredColumns = [], onToggleIgnore, onSplitColumn, columnWidths = {}
+    ignoredColumns = [], onToggleIgnore, onSplitColumn, splittableColumns = {}, columnWidths = {}
 }, ref) => {
     const defaultRef = useRef<HTMLDivElement>(null);
     const parentRef = (ref as React.RefObject<HTMLDivElement>) || defaultRef;
@@ -88,14 +88,14 @@ export const DataGrid = React.forwardRef<HTMLDivElement, DataGridProps>(({
                                     {col.split('_').join('_\u200B')}
                                 </span>
 
-                                {onSplitColumn && (
+                                {onSplitColumn && splittableColumns[col] && splittableColumns[col] !== 'NONE' && (
                                     <button
                                         onClick={(e) => {
                                             e.stopPropagation();
                                             onSplitColumn(col);
                                         }}
                                         className="text-neutral-400 hover:text-purple-600 dark:hover:text-purple-400 p-1 rounded-full hover:bg-neutral-200 dark:hover:bg-neutral-800 transition-all opacity-0 group-hover:opacity-100 focus:opacity-100 mr-1"
-                                        title="Smart Split Address"
+                                        title={`Smart Split ${splittableColumns[col] === 'ADDRESS' ? 'Address' : 'Name'}`}
                                     >
                                         <Scissors className="w-4 h-4" />
                                     </button>
