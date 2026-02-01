@@ -11,6 +11,7 @@ export type MLTaskType =
  * Structured request for the ML Worker.
  */
 export interface MLRequest {
+    requestId: string; // Unique ID for request tracking
     type: MLTaskType;
     modelId?: string;
     data?: string[] | Float32Array[]; // Explicitly typed for embeddings or raw text
@@ -23,6 +24,7 @@ export interface MLRequest {
  * Structured response from the ML Worker.
  */
 export interface MLResponse {
+    requestId?: string; // Echoed back to listener
     status: 'ready' | 'working' | 'complete' | 'error';
     task?: MLTaskType; // Now includes sub-tasks like 'loading-model'
     data?: any; // The result (e.g., cluster IDs or embeddings)

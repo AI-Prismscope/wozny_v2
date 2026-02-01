@@ -2,6 +2,7 @@
 
 import React, { useState, useMemo } from 'react';
 import { useWoznyStore, RowData, AnalysisIssue } from '@/lib/store/useWoznyStore';
+import { useAnalysisStore } from '@/lib/store/useAnalysisStore';
 import { DataGrid } from '@/shared/DataGrid';
 import { EmptyState } from '@/shared/EmptyState';
 import { Wand2, Loader2, X, Download, ArrowLeft } from 'lucide-react';
@@ -17,6 +18,16 @@ export const AskWoznyView = () => {
     const setUserSelection = useWoznyStore((state) => state.setUserSelection);
     const sortConfig = useWoznyStore((state) => state.sortConfig);
     const toggleSort = useWoznyStore((state) => state.toggleSort);
+
+    // Analysis for visibility
+    const ignoredColumns = useAnalysisStore((state) => state.ignoredColumns);
+    const showHiddenColumns = useWoznyStore((state) => state.showHiddenColumns);
+
+    // Compute Visible Columns
+    const visibleColumns = useMemo(() => {
+        if (showHiddenColumns) return columns;
+        return columns.filter(c => !ignoredColumns.includes(c));
+    }, [columns, ignoredColumns, showHiddenColumns]);
 
     // AI Hooks
     const { initialize, generateFilterCode, isReady, isLoading: isEngineLoading, progress } = useWoznyLLM();
@@ -37,8 +48,11 @@ export const AskWoznyView = () => {
         }
 
         setIsThinking(true);
+        setIsThinking(true);
         try {
-            const code = await generateFilterCode(columns, aiQuery, rows);
+            // Only feed visible columns to AI? Or give it all but tell it which are ignored?
+            // For now, let's just give it visible columns to avoid confusion
+            const code = await generateFilterCode(visibleColumns, aiQuery, rows);
             console.log("AI Code:", code);
             setAiFilterCode(code);
         } catch (e) {
@@ -91,8 +105,8 @@ export const AskWoznyView = () => {
             cleanCode = cleanCode.replace(/^(const|let|var)\s+\w+\s*=\s*/, '');
 
             // 3. Remove trailing semicolons
-            cleanCode = cleanCode.replace(/;$/, '');
             cleanCode = cleanCode.trim();
+            cleanCode = cleanCode.replace(/;$/, '');
 
             console.log("Raw AI Code:", aiFilterCode);
             console.log("Parsed Code:", cleanCode);
@@ -200,7 +214,7 @@ export const AskWoznyView = () => {
                     </button>
 
                     <button
-                        onClick={() => downloadCleanCsv(filteredRows, columns)}
+                        onClick={() => downloadCleanCsv(filteredRows, visibleColumns)}
                         className="px-4 py-2 text-sm font-medium bg-neutral-900 dark:bg-white text-white dark:text-black rounded-lg hover:opacity-90 transition-all flex items-center gap-2"
                     >
                         <Download className="w-4 h-4" />
@@ -230,7 +244,7 @@ export const AskWoznyView = () => {
                 ) : (
                     <DataGrid
                         data={filteredRows}
-                        columns={columns}
+                        columns={visibleColumns}
                         className="shadow-sm border border-neutral-200 dark:border-neutral-800"
                         sortConfig={sortConfig}
                         onSort={toggleSort}

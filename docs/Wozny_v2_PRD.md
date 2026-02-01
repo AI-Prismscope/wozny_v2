@@ -39,14 +39,16 @@ To maintain data privacy and accuracy:
 *   **Ingestion:** Support CSV/Excel.
 *   **Instant Scan:** Automatically detect:
     *   **Missing Values:** "Cell A5 is empty."
-    *   **Duplicates:** "Row 10 and 55 are 100% identical."
+    *   **Duplicates:** "Row 10 and 55 are 100% identical" + **Smart Partial Matching** (e.g. "Similar Email and Phone, but different Company").
     *   **Formatting Issues:** "Phone number is missing area code."
     *   **Smart Sorting:** Type-aware sorting for Currency, Dates, and Text with stable "Sort Off" restoration.
     *   **Smart Split:** Semantic column decomposition (Addresses/Names) with "Disciplined" business-category filtering.
 
 ### **2. "Ask Wozny" (The AI Search)**
 *   **Natural Language Querying:** User types *"Show me all contacts where the Account Manager is Sarah Johnson"*.
-*   **Blind Execution:** The AI generates a script to find these rows without reading them.
+*   **Secure Execution:**
+    *   **PII Filters:** Emails and Phone numbers are redacted (`[EMAIL REDACTED]`) from the AI prompt context to prevent leakage.
+    *   **Blind Execution:** The AI generates a script to find these rows without reading the actual sensitive data values.
 *   **Safety:** Handles casing (`sarah` vs `Sarah`) and whitespace (`Sarah `) automatically.
 *   **Deep Filtering:** Allows queries complex for humans but easy for AI (e.g., *"Show users in NY missing an email"*).
 

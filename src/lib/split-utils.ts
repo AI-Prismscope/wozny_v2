@@ -1,11 +1,11 @@
-import { US_STATES, ZIP_LOOKUP } from './us-data';
+import { ZIP_LOOKUP } from './us-data';
+import { US_STATES, toTitleCase } from './normalizers';
 
 export type SplitType = 'ADDRESS' | 'NAME' | 'NONE';
 export interface AddressComponents { Street: string; City: string; State: string; Zip: string; }
 export interface NameComponents { First: string; Middle: string; Last: string; }
 
 // Internal Utility to keep UI consistent
-const toTitleCase = (str: string): string => str.replace(/\w\S*/g, (t) => t.charAt(0).toUpperCase() + t.substring(1).toLowerCase());
 
 // Keywords that suggest a column is Categorical/Business, not a Person's Name
 const BUSINESS_KEYWORDS = new Set([
@@ -63,7 +63,9 @@ export const parseFullName = (raw: string): NameComponents | null => {
 
 export const parseAddress = (raw: string): AddressComponents => {
     const fallback: AddressComponents = { Street: raw, City: '[MISSING]', State: '[MISSING]', Zip: '[MISSING]' };
-    if (!raw || raw.length < 5) return fallback;
+
+    // Security: Truncate or reject extremely long strings to prevent ReDoS
+    if (!raw || raw.length < 5 || raw.length > 200) return fallback;
 
     const clean = raw.trim();
 
@@ -73,17 +75,38 @@ export const parseAddress = (raw: string): AddressComponents => {
         const zip = zipMatch[1];
         const lookup = ZIP_LOOKUP[zip];
         if (lookup) {
+            // HYBRID STRATEGY: 
+            // 1. Try to use Suffix Pattern to physically separate Street from "City in Text" (e.g. "Manhattan")
+            // This is critical because "text city" (Manhattan) might differ from "lookup city" (New York),
+            // and simple string replacement would fail to remove "Manhattan".
+            // ROBUSTNESS UPDATE: Added \.? to handle "Blvd." and expanded suffix list (Pkwy, Cir, etc.)
+            const suffixMatch = clean.match(/^(.*?\b(?:St|Ave|Rd|Blvd|Dr|Ln|Way|Ct|Pl|Street|Avenue|Road|Pkwy|Cir|Sq|Aly|Hwy)\.?)\s+(.*?)\s+([A-Z]{2})\s+(\d{5}(?:-\d{4})?)$/i);
+
+            if (suffixMatch) {
+                // Winning Combo: Accurate Street split + Standardized City from Lookup
+                return {
+                    Street: toTitleCase(suffixMatch[1].trim()),
+                    City: lookup.city, // Normalize "Manhattan" -> "New York"
+                    State: lookup.state,
+                    Zip: zip
+                };
+            }
+
+            // 2. Fallback: Try to remove the Canonical City/State from string
+            // (Works only if text matches lookup, e.g. "New York" == "New York")
             let street = clean.replace(zip, '').trim();
-            // Remove state and city if they exist in the string to isolate the street
             street = street.replace(new RegExp(`,?\\s*${lookup.state}\\b`, 'i'), '');
+            // Attempt to remove canonical city. If it fails, we return street as-is (imperfect but safe)
             street = street.replace(new RegExp(`,?\\s*${lookup.city}\\b`, 'i'), '').replace(/,$/, '');
+
             return { Street: toTitleCase(street) || '[MISSING]', City: lookup.city, State: lookup.state, Zip: zip };
         }
 
         // 1b. Suffix-Aware Pattern Fallback
         // Matches: "222 Main St Brooklyn NY 11215"
         // Anchor on common street suffixes to separate street from city accurately.
-        const suffixMatch = clean.match(/^(.*?\b(?:St|Ave|Rd|Blvd|Dr|Ln|Way|Ct|Pl|Street|Avenue|Road)\b)\s+(.*?)\s+([A-Z]{2})\s+(\d{5}(?:-\d{4})?)$/i);
+        // ROBUSTNESS UPDATE: Added \.? and expanded list
+        const suffixMatch = clean.match(/^(.*?\b(?:St|Ave|Rd|Blvd|Dr|Ln|Way|Ct|Pl|Street|Avenue|Road|Pkwy|Cir|Sq|Aly|Hwy)\.?)\s+(.*?)\s+([A-Z]{2})\s+(\d{5}(?:-\d{4})?)$/i);
         if (suffixMatch && US_STATES.has(suffixMatch[3].toUpperCase())) {
             return {
                 Street: toTitleCase(suffixMatch[1].trim()),
@@ -95,7 +118,8 @@ export const parseAddress = (raw: string): AddressComponents => {
 
         // 1c. Simple Pattern Fallback (Greedy Street, One Word City)
         // Matches: "123 Main Brooklyn NY 11215"
-        const generalMatch = clean.match(/^(.*)\s+([^,0-9\s]+)\s+([A-Z]{2})\s+(\d{5}(?:-\d{4})?)$/i);
+        // SECURITY UPDATE: Changed (.*) to (.*?) non-greedy match to prevent catastrophic backtracking
+        const generalMatch = clean.match(/^(.*?)\s+([^,0-9\s]+)\s+([A-Z]{2})\s+(\d{5}(?:-\d{4})?)$/i);
         if (generalMatch && US_STATES.has(generalMatch[3].toUpperCase())) {
             return {
                 Street: toTitleCase(generalMatch[1].trim()),

@@ -2,13 +2,15 @@
 
 import React from 'react';
 import { useWoznyStore } from '@/lib/store/useWoznyStore';
+import { useAnalysisStore } from '@/lib/store/useAnalysisStore';
 import { Eye, EyeOff } from 'lucide-react';
 import clsx from 'clsx';
 
 export const GlobalVisibilityToggle = () => {
     const showHiddenColumns = useWoznyStore((state) => state.showHiddenColumns);
     const toggleShowHiddenColumns = useWoznyStore((state) => state.toggleShowHiddenColumns);
-    const ignoredCount = useWoznyStore((state) => state.ignoredColumns.length);
+    // Correctly get ignored count from Analysis store
+    const ignoredCount = useAnalysisStore((state) => state.ignoredColumns.length);
 
     // Don't show if nothing is ignored
     if (ignoredCount === 0) return null;

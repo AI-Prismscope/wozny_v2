@@ -2,6 +2,7 @@
 
 import React from 'react';
 import { useWoznyStore } from '@/lib/store/useWoznyStore';
+import { useAnalysisStore } from '@/lib/store/useAnalysisStore';
 import { DataGrid } from '@/shared/DataGrid';
 import { Download, ArrowRight } from 'lucide-react';
 import Papa from 'papaparse';
@@ -12,10 +13,13 @@ export const DiffView = () => {
     const rawRows = useWoznyStore((state) => state.rawRows);
     const rows = useWoznyStore((state) => state.rows);
     const columns = useWoznyStore((state) => state.columns);
-    const ignoredColumns = useWoznyStore((state) => state.ignoredColumns);
-    const showHiddenColumns = useWoznyStore((state) => state.showHiddenColumns);
     const fileName = useWoznyStore((state) => state.fileName);
     const setActiveTab = useWoznyStore((state) => state.setActiveTab);
+
+    // Analysis Store (for ignored columns)
+    const ignoredColumns = useAnalysisStore((state) => state.ignoredColumns);
+    const toggleIgnoreColumn = useAnalysisStore((state) => state.toggleIgnoreColumn);
+    const showHiddenColumns = useWoznyStore((state) => state.showHiddenColumns);
 
     // Filter Logic:
     // If showHiddenColumns is FALSE, we hide ignored columns from the View entirely.
@@ -98,7 +102,7 @@ export const DiffView = () => {
                             data={rows}
                             columns={visibleColumns}
                             ignoredColumns={ignoredColumns}
-                            onToggleIgnore={useWoznyStore((state) => state.toggleIgnoreColumn)}
+                            onToggleIgnore={toggleIgnoreColumn}
                         />
                     </div>
                 </div>
@@ -119,7 +123,7 @@ export const DiffView = () => {
                             data={rawRows}
                             columns={visibleColumns}
                             ignoredColumns={ignoredColumns}
-                            onToggleIgnore={useWoznyStore((state) => state.toggleIgnoreColumn)}
+                            onToggleIgnore={toggleIgnoreColumn}
                         />
                     </div>
                 </div>

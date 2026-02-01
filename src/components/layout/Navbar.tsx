@@ -3,7 +3,7 @@
 import React from 'react';
 import { useWoznyStore } from '@/lib/store/useWoznyStore';
 import clsx from 'clsx';
-import { UploadCloud, Table, FileText, Wrench, Download, Wand2, HelpCircle } from 'lucide-react';
+import { UploadCloud, Table, FileText, Wrench, Download, Wand2, HelpCircle, Activity } from 'lucide-react';
 
 export const Navbar = () => {
     const activeTab = useWoznyStore((state) => state.activeTab);
@@ -18,10 +18,23 @@ export const Navbar = () => {
         { id: 'ask-wozny', label: 'Ask Wozny', icon: Wand2, hidden: false },
         { id: 'diff', label: 'Review & Export', icon: Download, hidden: false },
         { id: 'about', label: 'About', icon: HelpCircle, hidden: false },
+        { id: 'status', label: 'Status', icon: Activity, hidden: false },
         // Hidden / Deprecated
         { id: 'analysis', label: 'Analysis', icon: FileText, hidden: true },
         { id: 'table', label: 'Table Data', icon: Table, hidden: true },
     ] as const;
+
+    // Load storage info on mount
+    React.useEffect(() => {
+        useWoznyStore.getState().checkStorage();
+    }, []);
+
+    const storage = useWoznyStore((state) => state.storageUsage);
+    const getHealthColor = (percent: number) => {
+        if (percent > 80) return 'text-red-500';
+        if (percent > 60) return 'text-yellow-500';
+        return 'text-green-500';
+    };
 
     return (
         <nav className="flex items-center space-x-1">
@@ -40,6 +53,10 @@ export const Navbar = () => {
                     >
                         <tab.icon className="w-4 h-4" />
                         {tab.label}
+                        {/* Status Health Indicator */}
+                        {tab.id === 'status' && storage && (
+                            <span className={clsx("w-2 h-2 rounded-full bg-current ml-1", getHealthColor(storage.percent))} />
+                        )}
                         {isActive && (
                             <span className="absolute bottom-0 left-0 w-full h-0.5 bg-blue-500 rounded-full" />
                         )}

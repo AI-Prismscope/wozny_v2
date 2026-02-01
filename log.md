@@ -347,3 +347,32 @@
 **Action:** `Disciplined Split Heuristics (Categorical Filtering)`
 **Details:** `Implemented cardinality (uniqueness) tracking and a BUSINESS_KEYWORDS whitelist to protect categorical columns from false-positive splitting. 'Type of ownership' and similar columns are now correctly identified as Categorical and excluded from splitting.`
 **Impact:** `Reduced UI clutter and eliminated nonsensical 'First/Middle/Last' prompts for business data.`
+
+---
+**Timestamp:** `2026-02-01 14:57:04`
+**Category:** `LOGIC_FIX`
+**Status:** `SOLVED`
+**Action:** `Standardized Duplicate Detection (Partial Matches)`
+**Details:** `Updated duplicate detection in data-quality.ts to perform a two-tier analysis: 1. Exact Full Hash Match. 2. Partial Key Match (Same Email OR Same Phone + Name). Refactored resolveDuplicates to use this shared logic.`
+**Impact:** `"Remove All Copies" now correctly removes 100% of duplicates, not just exact row clones.`
+---
+**Timestamp:** `2026-02-01 14:57:04`
+**Category:** `REFACTOR`
+**Status:** `CLEANUP`
+**Action:** `Centralized AI Architecture`
+**Details:** `Consolidated all ML/AI components into src/lib/ai. Renamed worker.ts -> llm.worker.ts and ml-worker.ts -> embeddings.worker.ts to clarify purpose. Deleted src/lib/workers to eliminate fragmentation.`
+**Impact:** `Improved project structure and developer ergonomics.`
+---
+**Timestamp:** `2026-02-01 14:57:04`
+**Category:** `SECURITY`
+**Status:** `SOLVED`
+**Action:** `Implemented PII Redaction for LLM`
+**Details:** `Added redactPII filter in llm.worker.ts. Automatically masks email addresses and phone numbers before they are added to the LLM prompt context.`
+**Impact:** `Mitigated PII leakage risk in Generative AI workflows.`
+---
+**Timestamp:** `2026-02-01 14:57:04`
+**Category:** `LOGIC_FIX`
+**Status:** `SOLVED`
+**Action:** `Unified City Normalization`
+**Details:** `Standardized Dictionary mapping for "nyc" to "New York" (was "New York City") to match the Zip Code Lookup table. Prevents logic divergence.`
+**Impact:** `Ensures consistent city naming across different normalization strategies.`

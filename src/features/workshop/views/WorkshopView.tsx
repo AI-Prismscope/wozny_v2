@@ -1,7 +1,8 @@
 'use client';
 
 import React, { useState, useMemo } from 'react';
-import { useWoznyStore, RowData, AnalysisIssue } from '@/lib/store/useWoznyStore';
+import { useWoznyStore, RowData } from '@/lib/store/useWoznyStore';
+import { useAnalysisStore } from '@/lib/store/useAnalysisStore';
 import { DataGrid } from '@/shared/DataGrid';
 import { FileText, AlertTriangle, Ban, Layers, Loader2, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
 import clsx from 'clsx';
@@ -11,19 +12,22 @@ type FilterType = 'ALL' | 'MISSING' | 'FORMAT' | 'DUPLICATE' | 'USER_SELECTION';
 export const WorkshopView = () => {
     const rows = useWoznyStore((state) => state.rows);
     const columns = useWoznyStore((state) => state.columns);
-    const issues = useWoznyStore((state) => state.issues);
-    const ignoredColumns = useWoznyStore((state) => state.ignoredColumns);
     const showHiddenColumns = useWoznyStore((state) => state.showHiddenColumns);
     const splittableColumns = useWoznyStore((state) => state.splittableColumns);
     const sortConfig = useWoznyStore((state) => state.sortConfig);
     const toggleSort = useWoznyStore((state) => state.toggleSort);
-
     const setActiveTab = useWoznyStore((state) => state.setActiveTab);
     const updateCell = useWoznyStore((state) => state.updateCell);
     const removeRow = useWoznyStore((state) => state.removeRow);
     const resolveDuplicates = useWoznyStore((state) => state.resolveDuplicates);
-    const autoFormat = useWoznyStore((state) => state.autoFormat);
     const splitAddressColumn = useWoznyStore((state) => state.splitAddressColumn);
+
+    // Analysis Store
+    const issues = useAnalysisStore((state) => state.issues);
+    const ignoredColumns = useAnalysisStore((state) => state.ignoredColumns);
+    const toggleIgnoreColumn = useAnalysisStore((state) => state.toggleIgnoreColumn);
+    const autoFormat = useAnalysisStore((state) => state.autoFormat);
+
 
     // Filter Logic:
     // If showHiddenColumns is FALSE, we hide ignored columns from the View entirely.
@@ -348,7 +352,7 @@ export const WorkshopView = () => {
                         onDeleteRow={filter === 'DUPLICATE' || filter === 'MISSING' ? handleRemoveRow : undefined}
                         // Column Management
                         ignoredColumns={ignoredColumns}
-                        onToggleIgnore={useWoznyStore((state) => state.toggleIgnoreColumn)}
+                        onToggleIgnore={toggleIgnoreColumn}
                         onSplitColumn={handleSplitClick}
                         splittableColumns={splittableColumns}
                         sortConfig={sortConfig}
@@ -403,7 +407,7 @@ export const WorkshopView = () => {
                 <div className="fixed inset-0 z-[100] bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
                     <div className="bg-white dark:bg-neutral-900 rounded-xl shadow-2xl p-6 w-full max-w-sm border border-neutral-200 dark:border-neutral-800">
                         <h3 className="text-lg font-bold mb-2 text-neutral-900 dark:text-white">Smart Split Column?</h3>
-                        <p className="text-sm text-neutral-600 dark:text-neutral-400 mb-6">
+                        <div className="text-sm text-neutral-600 dark:text-neutral-400 mb-6">
                             This will split <strong>"{splitConfirmation}"</strong> into new columns:
                             <br />
                             <div className="flex gap-2 mt-2 flex-wrap">
@@ -416,7 +420,7 @@ export const WorkshopView = () => {
                                     </code>
                                 ))}
                             </div>
-                        </p>
+                        </div>
 
                         {isSplitting ? (
                             <div className="flex flex-col items-center justify-center py-4 space-y-3">

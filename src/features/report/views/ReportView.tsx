@@ -3,6 +3,7 @@
 
 import React, { useState } from 'react';
 import { useWoznyStore } from '@/lib/store/useWoznyStore';
+import { useAnalysisStore } from '@/lib/store/useAnalysisStore';
 import { CheckCircle2, AlertTriangle, FileText, Ban, Sparkles, Layout } from 'lucide-react';
 import { SmartAnalysisView } from './SmartAnalysisView';
 
@@ -11,10 +12,13 @@ type ViewMode = 'missing' | 'formatting' | 'duplicates' | 'smart';
 export const ReportView = () => {
     const fileName = useWoznyStore((state) => state.fileName);
     const rows = useWoznyStore((state) => state.rows);
-    const issues = useWoznyStore((state) => state.issues);
-    const ignoredColumns = useWoznyStore((state) => state.ignoredColumns);
-    const toggleIgnoreColumn = useWoznyStore((state) => state.toggleIgnoreColumn);
+    const columns = useWoznyStore((state) => state.columns);
     const setActiveTab = useWoznyStore((state) => state.setActiveTab);
+
+    // Analysis State from dedicated store
+    const issues = useAnalysisStore((state) => state.issues);
+    const ignoredColumns = useAnalysisStore((state) => state.ignoredColumns);
+    const toggleIgnoreColumn = useAnalysisStore((state) => state.toggleIgnoreColumn);
 
     const [activeView, setActiveView] = useState<ViewMode>('missing');
 
@@ -138,7 +142,7 @@ export const ReportView = () => {
                         </div>
                         <div className="inline-flex items-center gap-2 px-2 py-1 bg-neutral-100 dark:bg-neutral-800 rounded text-xs font-medium text-neutral-600 dark:text-neutral-400">
                             <Layout className="w-3 h-3" />
-                            {rows.length} rows x {useWoznyStore(state => state.columns).length} columns
+                            {rows.length} rows x {columns.length} columns
                         </div>
                     </div>
                 </div>

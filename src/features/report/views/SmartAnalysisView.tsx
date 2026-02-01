@@ -1,7 +1,8 @@
 
 import React, { useState } from 'react';
 import { useWoznyStore } from '@/lib/store/useWoznyStore';
-import { useMLWorker } from '@/lib/workers/useMLWorker';
+import { useAnalysisStore } from '@/lib/store/useAnalysisStore';
+import { useMLWorker } from '@/lib/ai/useEmbeddingsWorker';
 import { Sparkles, Play, Check, Loader2 } from 'lucide-react';
 
 export const SmartAnalysisView = () => {
@@ -11,8 +12,7 @@ export const SmartAnalysisView = () => {
     const { groupTexts, status, progress } = useMLWorker();
 
     const [analyzingColumn, setAnalyzingColumn] = useState<string | null>(null);
-
-    const ignoredColumns = useWoznyStore((state) => state.ignoredColumns);
+    const ignoredColumns = useAnalysisStore((state) => state.ignoredColumns);
 
     // Filter for "interesting" text columns (has more than 5 unique values, logic could be improved)
     const textColumns = columns.filter(col => {
@@ -34,7 +34,8 @@ export const SmartAnalysisView = () => {
 
             // Map IDs to Group Names (e.g., "Group 1", "Group 2")
             // In a real app, we'd find the centermost text and name it "Like 'Google'"
-            const groupValues = clusterIds.map(id => `Cluster ${id + 1}`);
+            // clusterIds is Int32Array, convert to standard array
+            const groupValues = Array.from(clusterIds).map(id => `Cluster ${id + 1}`);
 
             // Add to store
             addColumn(`${col} Group`, groupValues);

@@ -23,9 +23,9 @@ The first layer is fast, synchronous, and rule-based. It handles structural heal
 ### Layer 2: The Brain (Analytical ML)
 The second layer provides semantic understanding and clustering capabilities. It runs in a background Web Worker to prevent UI blocking.
 *   **Technology:** `transformers.js` (Hugging Face) + Custom K-Means.
-*   **Location:** `src/lib/workers/ml-worker.ts`
+*   **Location:** `src/lib/ai/embeddings.worker.ts`
 *   **Model:** `Xenova/all-MiniLM-L6-v2` (Quantized, ~22MB).
-*   **Hardware:** CPU / WASM.
+*   **Hardware:** WebGPU (Preferred) -> WASM (Fallback).
 *   **Functionality:**
     *   **Feature Extraction:** Converts text cells into 384-dimensional vector embeddings.
     *   **Smart Grouping:** Uses K-Means clustering (k=5) to group semantically similar values (e.g., "Google" ≈ "Google Inc.").
@@ -33,8 +33,8 @@ The second layer provides semantic understanding and clustering capabilities. It
 ### Layer 3: The Assistant (Generative AI)
 The third layer is the reasoning engine, capable of understanding natural language queries and generating code.
 *   **Technology:** `@mlc-ai/web-llm` (WebLLM).
-*   **Location:** `src/lib/ai/useWoznyLLM.ts`
-*   **Model:** `Llama-3.2-1B-Instruct-q4f16_1-MLC` (or 3B depending on device).
+*   **Location:** `src/lib/ai/llm.worker.ts`
+*   **Model:** `Llama-3.2-3B-Instruct-q4f32_1-MLC`.
 *   **Hardware:** WebGPU (GPU Accelerated).
 *   **Functionality:**
     *   **Ask Wozny:** Translates natural language queries (e.g., "Show me missing emails from NY") into executable JavaScript filter functions.
@@ -42,11 +42,23 @@ The third layer is the reasoning engine, capable of understanding natural langua
 
 ---
 
+## Security & Robustness
+
+### PII Protection (Layer 3)
+*   **Redaction:** Before any text is sent to the LLM context, it passes through a `redactPII` filter in `llm.worker.ts`.
+*   **Method:** Regex-based masking replaces detected emails with `[EMAIL REDACTED]` and phone numbers with `[PHONE REDACTED]`.
+*   **Scope:** This only applies to the *prompt context*. The actual row data remains untouched in the browser memory for the generated code to act upon locally.
+
+### Reliability Architecture
+*   **Singleton Pattern:** `useEmbeddingsWorker` manages a single reference-counted worker instance shared across all views.
+*   **Zombie Prevention:** Workers auto-terminate after a 1000ms idle retention period once all subscribers (components) unmount.
+*   **Hardware Fallback:** The Embeddings worker attempts to initialize via WebGPU first. If that fails (or context is lost), it gracefully downgrades to WASM execution.
+*   **Transferables:** All large data vectors (`Float32Array`, `Int32Array`) are passed via `postMessage` transferables to prevent main-thread cloning jank.
+
 ## Implementation Details
 
-### ML Worker (Analytical)
-The ML Worker is a dedicated thread that handles heavy computation.
-*   **File:** `src/lib/workers/ml-worker.ts`
+### Embeddings Worker
+*   **File:** `src/lib/ai/embeddings.worker.ts`
 *   **Communication:** `postMessage` / `onmessage`.
 *   **Task Types:**
     *   `feature-extraction`: Returns raw embeddings.
@@ -59,5 +71,5 @@ The "Ask Wozny" feature uses a sophisticated prompt engineering pipeline to ensu
 
 ## Performance Limits
 *   **UI Thread:** Capped at ~5,000 rows for real-time reactivity.
-*   **ML Worker:** Can handle larger datasets (~20k rows) but is currently constrained by the UI limit for synchronization.
-*   **Model Loading:** Cached in Browser Storage (`IndexedDB`) after first load.
+*   **ML Worker:** Can handle larger datasets (~20k rows) but is restricted by UI syncing limits.
+*   **Model Loading:** Cached in Browser Storage (`IndexedDB`) after first load. Cache management is available in the Status Dashboard.

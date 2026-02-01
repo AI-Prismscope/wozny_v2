@@ -7,13 +7,13 @@ export const US_STATES = new Set([
     'DC'
 ]);
 
+import { NYC_ZIPS } from './zips/nyc-zips';
+
 // A small sample of major metros for "Exact Inference"
-// In a full app, this would be a 2MB JSON file loaded lazily.
+// Combined with comprehensive NYC data for local accuracy.
 export const ZIP_LOOKUP: Record<string, { city: string, state: string }> = {
-    // NYC
-    '10001': { city: 'New York', state: 'NY' },
-    '10002': { city: 'New York', state: 'NY' },
-    '10012': { city: 'New York', state: 'NY' },
+    ...NYC_ZIPS,
+
     // SF
     '94103': { city: 'San Francisco', state: 'CA' },
     '94105': { city: 'San Francisco', state: 'CA' },

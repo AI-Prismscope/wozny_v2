@@ -16,7 +16,7 @@ export const getEngine = async (
     }
 
     const worker = new Worker(
-        new URL("./worker.ts", import.meta.url),
+        new URL("./llm.worker.ts", import.meta.url),
         { type: "module" }
     );
 

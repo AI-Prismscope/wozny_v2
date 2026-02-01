@@ -1,6 +1,8 @@
 import { create } from 'zustand';
 import { immer } from 'zustand/middleware/immer';
-import { runDeterministicAnalysis, autoFixRow } from '../data-quality';
+import { runDeterministicAnalysis, autoFixRow, findDuplicateGroups } from '../data-quality';
+
+import { sortRows } from '../services/sorting';
 
 export type RowData = Record<string, string>;
 
@@ -19,10 +21,14 @@ export interface WoznyState {
     fileName: string | null;
 
     // Analysis State
-    issues: AnalysisIssue[]; // Flat list of all issues
+    // Analysis is now managed in useAnalysisStore, but we keep this minimal sync if needed
+    // or we can remove 'issues' from WoznyState entirely if the UI switches to useAnalysisStore.
+    // For now, let's keep it but mark it as maintained by the external store?
+    // Actually, to comply with the plan, we should remove analysis logic from here.
+    issues: AnalysisIssue[];
 
     // App State
-    activeTab: 'upload' | 'ask-wozny' | 'analysis' | 'report' | 'workshop' | 'diff' | 'about';
+    activeTab: 'upload' | 'ask-wozny' | 'analysis' | 'report' | 'workshop' | 'diff' | 'about' | 'status';
     isAnalyzing: boolean;
 
     // User Selection State
@@ -32,8 +38,12 @@ export interface WoznyState {
     columnWidths: Record<string, number>;
     splittableColumns: Record<string, 'ADDRESS' | 'NAME' | 'NONE'>;
     sortConfig: { columnId: string; direction: 'asc' | 'desc' } | null;
+
+    // System Status State
+    storageUsage: { used: number; quota: number; percent: number } | null;
     // Actions
     setCsvData: (fileName: string, data: RowData[], columns: string[]) => void;
+    setRows: (rows: RowData[]) => void; // New action for AnalysisStore to call back
     setAnalysisResults: (issues: AnalysisIssue[]) => void;
     reset: () => void;
     setActiveTab: (tab: WoznyState['activeTab']) => void;
@@ -53,6 +63,9 @@ export interface WoznyState {
     splitAddressColumn: (columnId: string) => Promise<{ success: number; fail: number }>;
     // Sort Action
     toggleSort: (columnId: string) => void;
+
+    // System Actions
+    checkStorage: () => Promise<void>;
 }
 
 import { calculateColumnWidths } from '../measure-utils';
@@ -65,12 +78,11 @@ export const useWoznyStore = create<WoznyState>()(
         columns: [],
         fileName: null, issues: [], activeTab: 'about', isAnalyzing: false, userSelection: [], ignoredColumns: [], showHiddenColumns: false, columnWidths: {}, splittableColumns: {},
         sortConfig: null,
+        storageUsage: null,
 
         setCsvData: (fileName, data, columns) => set((state) => {
             state.fileName = fileName;
-            state.rawRows = data; // Keep original reference for comparison
-            // IMPORTANT: Deep copy each row so edits in 'rows' don't affect 'rawRows'
-            // and add a stable index for resetting sorts.
+            state.rawRows = data;
             state.rows = data.map((row, i) => ({ ...row, __wozny_index: String(i) }));
             state.columns = columns;
             state.columnWidths = calculateColumnWidths(data, columns);
@@ -83,10 +95,13 @@ export const useWoznyStore = create<WoznyState>()(
             });
             state.splittableColumns = splitMap;
 
-            const autoIssues = runDeterministicAnalysis(data, columns);
-            state.issues = autoIssues;
-            state.sortConfig = null; // Reset sort on new data
+            // Note: Analysis is now triggered by subscription in useAnalysisStore
+            state.sortConfig = null;
             state.activeTab = 'report';
+        }),
+
+        setRows: (rows) => set((state) => {
+            state.rows = rows;
         }),
 
         setAnalysisResults: (issues) => set((state) => { state.issues = issues; }),
@@ -121,13 +136,15 @@ export const useWoznyStore = create<WoznyState>()(
 
         resolveDuplicates: () => set((state) => {
             const rowsToDelete = new Set<number>();
-            const exactMap = new Map<string, number[]>();
-            const columns = state.columns;
-            state.rows.forEach((row, rowIndex) => {
-                const fingerprint = columns.map(col => String(row[col] || '').trim().toLowerCase()).join('|');
-                if (exactMap.has(fingerprint)) rowsToDelete.add(rowIndex);
-                else exactMap.set(fingerprint, [rowIndex]);
+            const duplicateGroups = findDuplicateGroups(state.rows, state.columns);
+
+            duplicateGroups.forEach(group => {
+                // Keep the first instance (original), delete the rest
+                for (let i = 1; i < group.length; i++) {
+                    rowsToDelete.add(group[i]);
+                }
             });
+
             state.rows = state.rows.filter((_, idx) => !rowsToDelete.has(idx));
             state.issues = runDeterministicAnalysis(state.rows, state.columns);
         }),
@@ -209,54 +226,28 @@ export const useWoznyStore = create<WoznyState>()(
                 else nextDir = null;
             }
 
-            if (!nextDir) {
-                state.sortConfig = null;
-                // REVERT: Sort by the stable original index
-                state.rows.sort((a, b) => {
-                    const idxA = parseInt(a.__wozny_index || '0');
-                    const idxB = parseInt(b.__wozny_index || '0');
-                    return idxA - idxB;
-                });
-                state.issues = runDeterministicAnalysis(state.rows, state.columns);
-                return;
+            const config = nextDir ? { columnId, direction: nextDir } : null;
+            state.sortConfig = config;
+
+            // Delegate to Service
+            state.rows = sortRows(state.rows, config);
+        }),
+
+        checkStorage: async () => {
+            if ('storage' in navigator && 'estimate' in navigator.storage) {
+                try {
+                    const estimate = await navigator.storage.estimate();
+                    const used = estimate.usage || 0;
+                    const quota = estimate.quota || (1024 * 1024 * 1024); // Fallback 1GB
+                    const percent = Math.round((used / quota) * 100);
+
+                    set((state) => {
+                        state.storageUsage = { used, quota, percent };
+                    });
+                } catch (e) {
+                    console.error("Storage estimate failed", e);
+                }
             }
-
-            state.sortConfig = { columnId, direction: nextDir };
-
-            // Sort rows
-            state.rows.sort((a, b) => {
-                const valA = String(a[columnId] || '').trim();
-                const valB = String(b[columnId] || '').trim();
-
-                if (!valA && !valB) return 0;
-                if (!valA) return nextDir === 'asc' ? 1 : -1;
-                if (!valB) return nextDir === 'asc' ? -1 : 1;
-
-                // 1. Currency/Number Check
-                const cleanA = valA.replace(/[$,€£\s,]/g, '');
-                const cleanB = valB.replace(/[$,€£\s,]/g, '');
-                const numA = parseFloat(cleanA);
-                const numB = parseFloat(cleanB);
-
-                if (!isNaN(numA) && !isNaN(numB) && cleanA.length > 0 && cleanB.length > 0 && !isNaN(Number(cleanA)) && !isNaN(Number(cleanB))) {
-                    return nextDir === 'asc' ? numA - numB : numB - numA;
-                }
-
-                // 2. Date Check
-                const dateA = Date.parse(valA);
-                const dateB = Date.parse(valB);
-                if (!isNaN(dateA) && !isNaN(dateB) && valA.length > 5 && valB.length > 5) {
-                    return nextDir === 'asc' ? dateA - dateB : dateB - dateA;
-                }
-
-                // 3. Text
-                return nextDir === 'asc'
-                    ? valA.localeCompare(valB, undefined, { numeric: true, sensitivity: 'base' })
-                    : valB.localeCompare(valA, undefined, { numeric: true, sensitivity: 'base' });
-            });
-
-            // Re-run analysis because indices changed
-            state.issues = runDeterministicAnalysis(state.rows, state.columns);
-        })
+        }
     }))
 );

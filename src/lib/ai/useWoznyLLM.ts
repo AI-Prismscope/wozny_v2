@@ -31,6 +31,10 @@ interface LLMState {
     standardizeStateCodes: (values: string[]) => Promise<Record<string, string>>;
 }
 
+// Basic PII Redaction Regex (Client-Side Sanitization)
+const PII_EMAIL = /[\w.-]+@[\w.-]+\.\w+/g;
+const PII_PHONE = /\b\d{3}[-.]?\d{3}[-.]?\d{4}\b/g;
+
 export const useWoznyLLM = create<LLMState>((set, get) => ({
     engine: null,
     isLoading: false,
@@ -94,7 +98,12 @@ export const useWoznyLLM = create<LLMState>((set, get) => ({
                 const uniqueValues = new Set<string>();
                 for (let i = 0; i < Math.min(rows.length, 500); i++) { // Scan first 500 rows
                     const val = rows[i][col];
-                    if (val) uniqueValues.add(String(val).trim());
+                    if (val) {
+                        // SANITIZATION: Redact PII from schema context samples
+                        let cleanVal = String(val).trim();
+                        cleanVal = cleanVal.replace(PII_EMAIL, '[EMAIL_REDACTED]').replace(PII_PHONE, '[PHONE_REDACTED]');
+                        uniqueValues.add(cleanVal);
+                    }
                     if (uniqueValues.size > 10) break; // Too many values, ignore
                 }
 
