@@ -72,4 +72,6 @@ The "Ask Wozny" feature uses a sophisticated prompt engineering pipeline to ensu
 ## Performance Limits
 *   **UI Thread:** Capped at ~5,000 rows for real-time reactivity.
 *   **ML Worker:** Can handle larger datasets (~20k rows) but is restricted by UI syncing limits.
-*   **Model Loading:** Cached in Browser Storage (`IndexedDB`) after first load. Cache management is available in the Status Dashboard.
+*   **Model Loading:** Cached in Browser Storage (`IndexedDB` / `Cache API`) after first load.
+    *   **LLM (Llama 3.2):** Stored in `webllm/mlc` cache (approx 2GB).
+    *   **Embeddings (MiniLM):** Stored in `transformers-cache` (approx 22MB).

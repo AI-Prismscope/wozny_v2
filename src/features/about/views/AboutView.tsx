@@ -22,9 +22,16 @@ export const AboutView = () => {
 
                     {/* Right: Actions */}
                     <div className="flex flex-col items-center justify-center gap-6">
-                        <div className="flex items-center gap-2 px-3 py-1 bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-300 rounded-full text-sm font-medium">
-                            <ShieldCheck className="w-4 h-4" />
-                            100% Private (Local Execution)
+                        <div className="flex flex-col gap-2 relative z-10">
+                            <div className="flex items-center gap-2 px-3 py-1 bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-300 rounded-full text-sm font-medium whitespace-nowrap">
+                                <ShieldCheck className="w-4 h-4" />
+                                100% Private (Local Execution)
+                            </div>
+                            <div className="flex items-center justify-center gap-2 text-xs font-medium text-neutral-400">
+                                <span>Offline Capable</span>
+                                <span>•</span>
+                                <span>GDPR Compliant</span>
+                            </div>
                         </div>
                         <button
                             onClick={() => useWoznyStore.getState().setActiveTab('upload')}

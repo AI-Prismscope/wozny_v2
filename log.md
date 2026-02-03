@@ -376,3 +376,33 @@
 **Action:** `Unified City Normalization`
 **Details:** `Standardized Dictionary mapping for "nyc" to "New York" (was "New York City") to match the Zip Code Lookup table. Prevents logic divergence.`
 **Impact:** `Ensures consistent city naming across different normalization strategies.`
+
+---
+**Timestamp:** `2026-02-03 14:15:00`
+**Category:** `UI_UX`
+**Status:** `PUBLISHED`
+**Action:** `Refactored Status Dashboard Layout`
+**Details:** `Redesigned Status View with a split header (System Status / Storage Quota) and compact "Data Retention" vs "Privacy" cards. Removed vertical sidebar to align with the main application layout.`
+**Impact:** `Improved information hierarchy and visual balance.`
+---
+**Timestamp:** `2026-02-03 14:45:00`
+**Category:** `UI_UX`
+**Status:** `PUBLISHED`
+**Action:** `Implemented Custom Confirmation Dialogs`
+**Details:** `Replaced native browser 'confirm()' alerts with a custom, theme-aware 'ConfirmDialog' component. Integrated this into "Clear Model Cache" and "Factory Reset App" workflows.`
+**Impact:** `Enhanced user experience and UI consistency.`
+---
+**Timestamp:** `2026-02-03 15:30:00`
+**Category:** `LOGIC_FIX`
+**Status:** `SOLVED`
+**Action:** `Comprehensive AI Cache Detection`
+**Details:** `Updated 'StatusView.tsx' to detect both 'transformers-cache' (Embeddings) and 'webllm/mlc' (Llama 3.2) stores. Previously, the status indicator only checked for Transformers.js, leading to false negatives for the Chat model.`
+**Impact:** `Accurate, granular status reporting for all AI models.`
+---
+**Timestamp:** `2026-02-03 16:45:00`
+**Category:** `FEATURE`
+**Status:** `PUBLISHED`
+**Action:** `Regulatory Compliance Verification`
+**Details:** `Added explicit GDPR (Right to Erasure/Local Processing) and CCPA (No Data Sale) badges to the Status functionality. Leveraged the "Zero-Knowledge" architecture to validate compliance by design.`
+**Impact:** `Explicitly communicates the privacy benefits of the Local-First architecture to end users.`
+

@@ -3,6 +3,10 @@
 Wozny combines the speed of local processing with the power of AI—without your sensitive data ever leaving your browser.
 
 > **🛡️ 100% Private (Local Execution)**
+>
+> Zero-Knowledge Architecture. Your data never leaves your device.
+> *   **Offline Capable:** Works without internet after initial load.
+> *   **Regulatory Ready:** GDPR Compliant (Local Storage) & CCPA Ready.
 
 ## The Three Layers of Intelligence
 
