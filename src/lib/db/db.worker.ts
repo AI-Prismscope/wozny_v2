@@ -187,6 +187,25 @@ self.onmessage = async (event: MessageEvent<DBRequest>) => {
         break;
       }
 
+      case "EXEC_BATCH": {
+        const { statements } = event.data;
+        if (!statements || !Array.isArray(statements)) {
+          throw new Error("EXEC_BATCH requires a statements array");
+        }
+        await execSQL("BEGIN");
+        try {
+          for (const { sql: bsql, bind: bbind } of statements) {
+            await execSQL(bsql, bbind);
+          }
+          await execSQL("COMMIT");
+        } catch (batchErr) {
+          await execSQL("ROLLBACK").catch(() => {});
+          throw batchErr;
+        }
+        reply({ type: "EXEC_BATCH_OK" });
+        break;
+      }
+
       case "QUERY": {
         if (!sql) throw new Error("QUERY requires a sql string");
         const rows = await querySQL(sql, bind);
