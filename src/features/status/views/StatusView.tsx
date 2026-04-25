@@ -32,6 +32,7 @@ export const StatusView = () => {
     active: { file_name: string; created_at: string } | null;
     cleanRowCount: number;
   } | null>(null);
+  const [clearing3a, setClearing3a] = useState(false);
 
   const [modelStatus, setModelStatus] = useState<{
     llama: boolean;
@@ -420,13 +421,37 @@ export const StatusView = () => {
             </p>
           )}
 
-          <button
-            onClick={runSmokeTest}
-            disabled={smokeStatus === "loading"}
-            className="mt-4 text-xs font-medium px-3 py-1.5 bg-indigo-50 dark:bg-indigo-900/20 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800 rounded-lg hover:bg-indigo-100 dark:hover:bg-indigo-900/30 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-          >
-            {smokeStatus === "loading" ? "Running…" : "Re-run Smoke Test"}
-          </button>
+          <div className="mt-4 flex items-center gap-3">
+            <button
+              onClick={runSmokeTest}
+              disabled={smokeStatus === "loading" || clearing3a}
+              className="text-xs font-medium px-3 py-1.5 bg-indigo-50 dark:bg-indigo-900/20 text-indigo-700 dark:text-indigo-300 border border-indigo-200 dark:border-indigo-800 rounded-lg hover:bg-indigo-100 dark:hover:bg-indigo-900/30 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            >
+              {smokeStatus === "loading" ? "Running…" : "Re-run Smoke Test"}
+            </button>
+            <button
+              onClick={async () => {
+                setClearing3a(true);
+                try {
+                  await exec(`DELETE FROM ignored_columns`);
+                  await exec(`DELETE FROM analysis_issues`);
+                  await exec(`DELETE FROM dataset_rows`);
+                  await exec(`DELETE FROM dataset_meta`);
+                  await exec(`DELETE FROM sessions`);
+                  setSessionInfo({ count: 0, active: null, cleanRowCount: 0 });
+                } catch (e) {
+                  console.error("[debug] Clear Wozny data failed:", e);
+                } finally {
+                  setClearing3a(false);
+                }
+              }}
+              disabled={smokeStatus === "loading" || clearing3a}
+              className="text-xs font-medium px-3 py-1.5 bg-red-50 dark:bg-red-900/10 text-red-600 dark:text-red-400 border border-red-200 dark:border-red-900/30 rounded-lg hover:bg-red-100 dark:hover:bg-red-900/20 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              title="Test utility — clears all Wozny session data from OPFS. Does not affect model caches."
+            >
+              {clearing3a ? "Clearing…" : "Clear Wozny Data"}
+            </button>
+          </div>
         </div>
 
         {/* Main 2-Column Layout */}
