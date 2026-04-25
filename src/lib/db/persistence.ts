@@ -22,6 +22,27 @@ import { exec, execBatch, query, initDB } from "./db";
 import type { DBStatement } from "./types";
 
 // ---------------------------------------------------------------------------
+// Ignored-column write helper (used by the analysisStore subscriber below)
+// ---------------------------------------------------------------------------
+
+async function writeIgnoredColumns(
+  sessionId: number,
+  columns: string[],
+): Promise<void> {
+  const statements: DBStatement[] = [
+    {
+      sql: `DELETE FROM ignored_columns WHERE session_id = ?`,
+      bind: [sessionId],
+    },
+    ...columns.map((col) => ({
+      sql: `INSERT INTO ignored_columns (session_id, column_name) VALUES (?, ?)`,
+      bind: [sessionId, col] as (string | number | null)[],
+    })),
+  ];
+  await execBatch(statements);
+}
+
+// ---------------------------------------------------------------------------
 // Session tracking
 // ---------------------------------------------------------------------------
 
@@ -211,6 +232,19 @@ useWoznyStore.subscribe((state, prevState) => {
   if (isRehydrating) return;
   handleStateChange(state, prevState).catch((err) =>
     console.error("[persistence] Subscriber error:", err),
+  );
+});
+
+// Subscribe to useAnalysisStore to persist ignoredColumns changes.
+// toggleIgnoreColumn lives in useAnalysisStore, so the useWoznyStore
+// subscriber above never sees those mutations.
+useAnalysisStore.subscribe((state, prevState) => {
+  if (isRehydrating) return;
+  if (state.ignoredColumns === prevState.ignoredColumns) return;
+  if (currentSessionId === null) return;
+
+  writeIgnoredColumns(currentSessionId, state.ignoredColumns).catch((err) =>
+    console.error("[persistence] Ignored columns write failed:", err),
   );
 });
 
