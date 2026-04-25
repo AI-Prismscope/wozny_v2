@@ -39,7 +39,7 @@ async function initDB(): Promise<void> {
       locateFile: (f: string) => string;
     }) => Promise<unknown>
   )({
-    locateFile: (f: string) => "/" + f,
+    locateFile: (f: string) => `${self.location.origin}/${f}`,
   });
 
   // 2. Wrap the low-level module in the wa-sqlite JS API.
