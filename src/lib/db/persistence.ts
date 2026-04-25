@@ -17,6 +17,7 @@
 // ---------------------------------------------------------------------------
 
 import { useWoznyStore, RowData, WoznyState } from "../store/useWoznyStore";
+import { useAnalysisStore } from "../store/useAnalysisStore";
 import { exec, execBatch, query, initDB } from "./db";
 import type { DBStatement } from "./types";
 
@@ -26,6 +27,13 @@ import type { DBStatement } from "./types";
 
 /** The SQLite id of the currently active session, or null before first upload. */
 let currentSessionId: number | null = null;
+
+/**
+ * Set to true while rehydrateSession() is populating the stores.
+ * Prevents the write-path subscriber from treating rehydration as a
+ * new-file upload or a user mutation and writing straight back to the DB.
+ */
+let isRehydrating = false;
 
 export function getCurrentSessionId(): number | null {
   return currentSessionId;
@@ -48,16 +56,12 @@ async function createSession(fileName: string): Promise<number> {
      VALUES (?, 1, datetime('now'), datetime('now'))`,
     [fileName],
   );
-  const rows = await query<{ id: number }>(
-    `SELECT last_insert_rowid() AS id`,
-  );
+  const rows = await query<{ id: number }>(`SELECT last_insert_rowid() AS id`);
   return rows[0].id;
 }
 
 async function deactivateAllSessions(): Promise<void> {
-  await exec(
-    `UPDATE sessions SET is_active = 0, updated_at = datetime('now')`,
-  );
+  await exec(`UPDATE sessions SET is_active = 0, updated_at = datetime('now')`);
 }
 
 async function upsertDatasetMeta(
@@ -103,10 +107,7 @@ function buildRowInsertStatements(
   return statements;
 }
 
-async function writeRawRows(
-  sessionId: number,
-  rows: RowData[],
-): Promise<void> {
+async function writeRawRows(sessionId: number, rows: RowData[]): Promise<void> {
   await execBatch(buildRowInsertStatements(sessionId, "raw", rows));
 }
 
@@ -137,12 +138,7 @@ async function handleNewFile(state: WoznyState): Promise<void> {
   await writeRawRows(id, state.rawRows);
   await writeCleanRows(id, state.rows);
 
-  console.log(
-    "[persistence] Session created:",
-    id,
-    "file:",
-    state.fileName,
-  );
+  console.log("[persistence] Session created:", id, "file:", state.fileName);
 }
 
 // ---------------------------------------------------------------------------
@@ -212,7 +208,145 @@ async function handleStateChange(
 // ---------------------------------------------------------------------------
 
 useWoznyStore.subscribe((state, prevState) => {
+  if (isRehydrating) return;
   handleStateChange(state, prevState).catch((err) =>
     console.error("[persistence] Subscriber error:", err),
   );
 });
+
+// ---------------------------------------------------------------------------
+// Rehydration — read path (Phase 3b)
+//
+// Called once on app mount. Reads the most recent active session from the
+// OPFS database and populates useWoznyStore and useAnalysisStore before the
+// UI renders any data. Returns true if a session was restored, false if the
+// database is empty (first visit or after a clear).
+// ---------------------------------------------------------------------------
+
+export async function rehydrateSession(): Promise<boolean> {
+  await initDB();
+
+  // 1. Find the most recent active session.
+  const sessions = await query<{ id: number; file_name: string }>(
+    `SELECT id, file_name FROM sessions
+     WHERE is_active = 1
+     ORDER BY id DESC LIMIT 1`,
+  );
+
+  if (sessions.length === 0) {
+    console.log("[persistence] No active session — starting fresh.");
+    return false;
+  }
+
+  const { id: sessionId, file_name: fileName } = sessions[0];
+
+  // 2. Load dataset metadata.
+  const metaRows = await query<{
+    columns: string;
+    column_widths: string;
+    splittable_columns: string;
+    sort_config: string | null;
+    show_hidden_columns: number;
+  }>(
+    `SELECT columns, column_widths, splittable_columns,
+            sort_config, show_hidden_columns
+     FROM dataset_meta WHERE session_id = ?`,
+    [sessionId],
+  );
+
+  if (metaRows.length === 0) {
+    console.warn(
+      "[persistence] Session",
+      sessionId,
+      "has no metadata — skipping rehydration.",
+    );
+    return false;
+  }
+
+  const meta = metaRows[0];
+
+  // 3. Load raw rows (original upload, preserves rawRows state).
+  const rawRecords = await query<{ row_json: string }>(
+    `SELECT row_json FROM dataset_rows
+     WHERE session_id = ? AND row_type = 'raw'
+     ORDER BY row_index`,
+    [sessionId],
+  );
+
+  // 4. Load clean rows (current working copy).
+  const cleanRecords = await query<{ row_json: string }>(
+    `SELECT row_json FROM dataset_rows
+     WHERE session_id = ? AND row_type = 'clean'
+     ORDER BY row_index`,
+    [sessionId],
+  );
+
+  const rawRows = rawRecords.map(
+    (r) => JSON.parse(String(r.row_json)) as RowData,
+  );
+  const cleanRows = cleanRecords.map(
+    (r) => JSON.parse(String(r.row_json)) as RowData,
+  );
+
+  if (cleanRows.length === 0) {
+    console.warn(
+      "[persistence] Session",
+      sessionId,
+      "has no rows — skipping rehydration.",
+    );
+    return false;
+  }
+
+  // 5. Load ignored columns (useAnalysisStore state).
+  const ignoredColRecords = await query<{ column_name: string }>(
+    `SELECT column_name FROM ignored_columns WHERE session_id = ?`,
+    [sessionId],
+  );
+  const ignoredColumns = ignoredColRecords.map((r) => String(r.column_name));
+
+  // 6. Populate stores — suppress the write-path subscriber while doing so.
+  currentSessionId = sessionId;
+  isRehydrating = true;
+
+  try {
+    useWoznyStore.setState({
+      fileName,
+      rawRows,
+      rows: cleanRows,
+      columns: JSON.parse(String(meta.columns)) as string[],
+      columnWidths: JSON.parse(String(meta.column_widths)) as Record<
+        string,
+        number
+      >,
+      splittableColumns: JSON.parse(String(meta.splittable_columns)) as Record<
+        string,
+        "ADDRESS" | "NAME" | "NONE"
+      >,
+      sortConfig: meta.sort_config
+        ? (JSON.parse(String(meta.sort_config)) as WoznyState["sortConfig"])
+        : null,
+      showHiddenColumns: meta.show_hidden_columns === 1,
+      // Land on report so the user immediately sees their data quality summary.
+      activeTab: "report",
+    });
+
+    // Restore ignored columns into the analysis store.
+    if (ignoredColumns.length > 0) {
+      useAnalysisStore.setState({ ignoredColumns });
+    }
+  } finally {
+    isRehydrating = false;
+  }
+
+  console.log(
+    "[persistence] Rehydrated session",
+    sessionId,
+    "—",
+    fileName,
+    "—",
+    cleanRows.length,
+    "rows",
+  );
+
+  return true;
+}
