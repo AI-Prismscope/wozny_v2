@@ -152,6 +152,12 @@ async function handleNewFile(state: WoznyState): Promise<void> {
   const id = await createSession(state.fileName ?? "Untitled");
   currentSessionId = id;
 
+  // Reset in-memory ignored columns so the previous session's ignored
+  // columns don't bleed into the new session's UI state.
+  if (useAnalysisStore.getState().ignoredColumns.length > 0) {
+    useAnalysisStore.getState().resetIgnoredColumns([]);
+  }
+
   // Write metadata, raw rows, and clean rows concurrently where possible.
   // Raw rows are the original upload — written once and never mutated.
   // Clean rows start as a copy of raw rows on first load.

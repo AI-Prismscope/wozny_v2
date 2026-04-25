@@ -33,6 +33,15 @@ export const StatusView = () => {
     active: { file_name: string; created_at: string } | null;
     cleanRowCount: number;
   } | null>(null);
+  const [sessionHistory, setSessionHistory] = useState<
+    {
+      id: number;
+      file_name: string;
+      created_at: string;
+      is_active: number;
+      row_count: number;
+    }[]
+  >([]);
   const [clearing3a, setClearing3a] = useState(false);
 
   const [modelStatus, setModelStatus] = useState<{
@@ -138,6 +147,27 @@ export const StatusView = () => {
       } catch {
         // sessions table may be empty on first load before any upload — not an error
         setSessionInfo({ count: 0, active: null, cleanRowCount: 0 });
+      }
+
+      // Phase 3c: query full session history to confirm old sessions are preserved
+      try {
+        const historyRows = await query<{
+          id: number;
+          file_name: string;
+          created_at: string;
+          is_active: number;
+          row_count: number;
+        }>(
+          `SELECT s.id, s.file_name, s.created_at, s.is_active,
+                  (SELECT COUNT(*) FROM dataset_rows dr
+                   WHERE dr.session_id = s.id AND dr.row_type = 'clean') AS row_count
+           FROM sessions s
+           ORDER BY s.id DESC
+           LIMIT 10`,
+        );
+        setSessionHistory(historyRows);
+      } catch {
+        setSessionHistory([]);
       }
 
       setSmokeStatus("ok");
@@ -405,6 +435,46 @@ export const StatusView = () => {
                   </div>
                 )}
               </div>
+
+              {/* Phase 3c: session history */}
+              {sessionHistory.length > 0 && (
+                <div className="pt-2 border-t border-neutral-100 dark:border-neutral-800">
+                  <p className="text-xs font-semibold text-neutral-500 uppercase tracking-wide mb-2">
+                    Phase 3c — Session History ({sessionHistory.length})
+                  </p>
+                  <div className="space-y-1.5">
+                    {sessionHistory.map((s) => (
+                      <div
+                        key={s.id}
+                        className={`flex items-center justify-between text-xs rounded px-2 py-1.5 ${
+                          s.is_active
+                            ? "bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800"
+                            : "bg-neutral-50 dark:bg-neutral-800/50 border border-neutral-100 dark:border-neutral-700"
+                        }`}
+                      >
+                        <div className="flex items-center gap-2 min-w-0">
+                          <span
+                            className={`w-1.5 h-1.5 rounded-full shrink-0 ${s.is_active ? "bg-green-500" : "bg-neutral-300 dark:bg-neutral-600"}`}
+                          />
+                          <span className="font-mono truncate text-neutral-800 dark:text-neutral-200">
+                            {s.file_name ?? "Untitled"}
+                          </span>
+                        </div>
+                        <div className="flex items-center gap-3 shrink-0 ml-2 text-neutral-500">
+                          <span>
+                            {Number(s.row_count).toLocaleString()} rows
+                          </span>
+                          <span
+                            className={`font-medium ${s.is_active ? "text-green-600 dark:text-green-400" : "text-neutral-400"}`}
+                          >
+                            {s.is_active ? "Active" : "Archived"}
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
 
               {sessionInfo !== null && (
                 <div className="pt-2 border-t border-neutral-100 dark:border-neutral-800">
