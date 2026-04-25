@@ -27,6 +27,7 @@ export const StatusView = () => {
   const [smokeRows, setSmokeRows] = useState<Record<string, unknown>[]>([]);
   const [smokeError, setSmokeError] = useState<string | null>(null);
   const [dbTables, setDbTables] = useState<string[]>([]);
+  const [ignoredDbColumns, setIgnoredDbColumns] = useState<string[]>([]);
   const [sessionInfo, setSessionInfo] = useState<{
     count: number;
     active: { file_name: string; created_at: string } | null;
@@ -100,6 +101,20 @@ export const StatusView = () => {
         `SELECT name FROM sqlite_master WHERE type='table' ORDER BY name`,
       );
       setDbTables(tableRows.map((r) => r.name));
+
+      // Phase 3b: query ignored_columns table to verify ignored-column write path
+      try {
+        const ignoredRows = await query<{ column_name: string }>(
+          `SELECT ic.column_name
+           FROM ignored_columns ic
+           JOIN sessions s ON ic.session_id = s.id
+           WHERE s.is_active = 1
+           ORDER BY ic.column_name`,
+        );
+        setIgnoredDbColumns(ignoredRows.map((r) => String(r.column_name)));
+      } catch {
+        setIgnoredDbColumns([]);
+      }
 
       // Phase 3a: query session and row data to verify the write path
       try {
@@ -367,6 +382,29 @@ export const StatusView = () => {
                   </div>
                 </div>
               )}
+
+              {/* Phase 3b: ignored columns DB contents */}
+              <div className="pt-2 border-t border-neutral-100 dark:border-neutral-800">
+                <p className="text-xs font-semibold text-neutral-500 uppercase tracking-wide mb-2">
+                  Phase 3b — Ignored Columns in DB ({ignoredDbColumns.length})
+                </p>
+                {ignoredDbColumns.length === 0 ? (
+                  <span className="text-xs text-neutral-400 italic">
+                    none — ignore a column then re-run smoke test
+                  </span>
+                ) : (
+                  <div className="flex flex-wrap gap-1.5">
+                    {ignoredDbColumns.map((name) => (
+                      <span
+                        key={name}
+                        className="font-mono text-xs px-2 py-0.5 rounded bg-amber-50 dark:bg-amber-900/20 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800"
+                      >
+                        {name}
+                      </span>
+                    ))}
+                  </div>
+                )}
+              </div>
 
               {sessionInfo !== null && (
                 <div className="pt-2 border-t border-neutral-100 dark:border-neutral-800">
