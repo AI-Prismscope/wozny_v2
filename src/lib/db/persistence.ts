@@ -364,9 +364,12 @@ export async function rehydrateSession(): Promise<boolean> {
       activeTab: "report",
     });
 
-    // Restore ignored columns into the analysis store.
+    // Restore ignored columns via the store's own immer-wrapped action.
+    // Using external setState({ ignoredColumns }) with Zustand v5 + immer
+    // can silently lose the update; resetIgnoredColumns goes through the
+    // proper set() path and is guaranteed to commit.
     if (ignoredColumns.length > 0) {
-      useAnalysisStore.setState({ ignoredColumns });
+      useAnalysisStore.getState().resetIgnoredColumns(ignoredColumns);
     }
   } finally {
     isRehydrating = false;
