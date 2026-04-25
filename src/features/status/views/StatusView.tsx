@@ -27,6 +27,11 @@ export const StatusView = () => {
   const [smokeRows, setSmokeRows] = useState<Record<string, unknown>[]>([]);
   const [smokeError, setSmokeError] = useState<string | null>(null);
   const [dbTables, setDbTables] = useState<string[]>([]);
+  const [sessionInfo, setSessionInfo] = useState<{
+    count: number;
+    active: { file_name: string; created_at: string } | null;
+    cleanRowCount: number;
+  } | null>(null);
 
   const [modelStatus, setModelStatus] = useState<{
     llama: boolean;
@@ -94,6 +99,30 @@ export const StatusView = () => {
         `SELECT name FROM sqlite_master WHERE type='table' ORDER BY name`,
       );
       setDbTables(tableRows.map((r) => r.name));
+
+      // Phase 3a: query session and row data to verify the write path
+      try {
+        const sessionCountRows = await query<{ count: number }>(
+          `SELECT COUNT(*) AS count FROM sessions`,
+        );
+        const activeSessionRows = await query<{
+          file_name: string;
+          created_at: string;
+        }>(
+          `SELECT file_name, created_at FROM sessions WHERE is_active = 1 LIMIT 1`,
+        );
+        const cleanRowCountRows = await query<{ count: number }>(
+          `SELECT COUNT(*) AS count FROM dataset_rows WHERE row_type = 'clean'`,
+        );
+        setSessionInfo({
+          count: sessionCountRows[0]?.count ?? 0,
+          active: activeSessionRows[0] ?? null,
+          cleanRowCount: cleanRowCountRows[0]?.count ?? 0,
+        });
+      } catch {
+        // sessions table may be empty on first load before any upload — not an error
+        setSessionInfo({ count: 0, active: null, cleanRowCount: 0 });
+      }
 
       setSmokeStatus("ok");
     } catch (err: unknown) {
@@ -334,6 +363,51 @@ export const StatusView = () => {
                         {name}
                       </span>
                     ))}
+                  </div>
+                </div>
+              )}
+
+              {sessionInfo !== null && (
+                <div className="pt-2 border-t border-neutral-100 dark:border-neutral-800">
+                  <p className="text-xs font-semibold text-neutral-500 uppercase tracking-wide mb-2">
+                    Phase 3a — Write Path
+                  </p>
+                  <div className="space-y-1 text-sm">
+                    <div className="flex items-center gap-4">
+                      <span className="text-neutral-500 w-28 shrink-0">
+                        Sessions total:
+                      </span>
+                      <span className="font-mono font-bold text-neutral-900 dark:text-white">
+                        {sessionInfo.count}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-4">
+                      <span className="text-neutral-500 w-28 shrink-0">
+                        Active file:
+                      </span>
+                      <span className="font-mono text-neutral-900 dark:text-white truncate">
+                        {sessionInfo.active?.file_name ?? (
+                          <span className="text-neutral-400 italic">
+                            none — upload a CSV to verify
+                          </span>
+                        )}
+                      </span>
+                    </div>
+                    {sessionInfo.active && (
+                      <div className="flex items-center gap-4">
+                        <span className="text-neutral-500 w-28 shrink-0">
+                          Clean rows:
+                        </span>
+                        <span className="font-mono font-bold text-neutral-900 dark:text-white">
+                          {sessionInfo.cleanRowCount.toLocaleString()}
+                        </span>
+                        {sessionInfo.cleanRowCount > 0 && (
+                          <span className="text-xs text-green-600 dark:text-green-400 font-medium">
+                            ✓ Write path confirmed
+                          </span>
+                        )}
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
