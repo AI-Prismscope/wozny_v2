@@ -6,6 +6,7 @@ import SQLiteFactory from "wa-sqlite/dist/wa-sqlite.mjs";
 import { AccessHandlePoolVFS } from "wa-sqlite/src/examples/AccessHandlePoolVFS.js";
 
 import type { DBRequest, DBResponse } from "./types";
+import { MIGRATIONS, SCHEMA_VERSION } from "./migrations";
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -59,7 +60,54 @@ async function initDB(): Promise<void> {
   // 5. Open (or create) the database file.
   db = await sqlite3.open_v2(DB_FILENAME);
 
+  // 6. Run any pending schema migrations.
+  await runMigrations();
+
   console.log("[db.worker] Initialised. OPFS directory:", OPFS_DIRECTORY);
+}
+
+// ---------------------------------------------------------------------------
+// Migrations
+// ---------------------------------------------------------------------------
+
+async function runMigrations(): Promise<void> {
+  if (!sqlite3 || db === null) throw new Error("DB not initialised");
+
+  // Determine which version is currently applied.
+  // If db_version doesn't exist yet this query will throw, so we catch
+  // and treat that as "no migrations applied" (version 0).
+  let currentVersion = 0;
+  try {
+    const rows = await querySQL("SELECT MAX(version) as v FROM db_version");
+    const v = rows[0]?.v;
+    if (typeof v === "number") currentVersion = v;
+  } catch {
+    // Table doesn't exist yet — start from version 0.
+    currentVersion = 0;
+  }
+
+  if (currentVersion >= SCHEMA_VERSION) {
+    console.log("[db.worker] Schema up to date at version", currentVersion);
+    return;
+  }
+
+  // Apply each missing version in ascending order.
+  const versions = Object.keys(MIGRATIONS)
+    .map(Number)
+    .filter((v) => v > currentVersion)
+    .sort((a, b) => a - b);
+
+  for (const version of versions) {
+    console.log("[db.worker] Applying migration v" + version);
+    for (const sql of MIGRATIONS[version]) {
+      await execSQL(sql);
+    }
+    await execSQL(
+      "INSERT INTO db_version (version, applied_at) VALUES (?, ?)",
+      [version, new Date().toISOString()],
+    );
+    console.log("[db.worker] Migration v" + version + " applied.");
+  }
 }
 
 // ---------------------------------------------------------------------------

@@ -26,6 +26,7 @@ export const StatusView = () => {
   const [smokeStatus, setSmokeStatus] = useState<SmokeStatus>("idle");
   const [smokeRows, setSmokeRows] = useState<Record<string, unknown>[]>([]);
   const [smokeError, setSmokeError] = useState<string | null>(null);
+  const [dbTables, setDbTables] = useState<string[]>([]);
 
   const [modelStatus, setModelStatus] = useState<{
     llama: boolean;
@@ -87,6 +88,13 @@ export const StatusView = () => {
       ]);
       const rows = await query(`SELECT * FROM _smoke ORDER BY id`);
       setSmokeRows(rows);
+
+      // Phase 2b: query the list of tables to verify schema was created
+      const tableRows = await query<{ name: string }>(
+        `SELECT name FROM sqlite_master WHERE type='table' ORDER BY name`,
+      );
+      setDbTables(tableRows.map((r) => r.name));
+
       setSmokeStatus("ok");
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
@@ -288,7 +296,7 @@ export const StatusView = () => {
           </div>
 
           {smokeStatus === "ok" && smokeRows.length > 0 && (
-            <div className="space-y-2">
+            <div className="space-y-3">
               <div className="flex items-center gap-4 text-sm">
                 <span className="text-neutral-500">First load:</span>
                 <span className="font-mono text-neutral-900 dark:text-white">
@@ -311,6 +319,24 @@ export const StatusView = () => {
                   </span>
                 )}
               </div>
+
+              {dbTables.length > 0 && (
+                <div className="pt-2 border-t border-neutral-100 dark:border-neutral-800">
+                  <p className="text-xs font-semibold text-neutral-500 uppercase tracking-wide mb-2">
+                    Phase 2b — Schema Tables ({dbTables.length})
+                  </p>
+                  <div className="flex flex-wrap gap-1.5">
+                    {dbTables.map((name) => (
+                      <span
+                        key={name}
+                        className="font-mono text-xs px-2 py-0.5 rounded bg-indigo-50 dark:bg-indigo-900/20 text-indigo-700 dark:text-indigo-300 border border-indigo-100 dark:border-indigo-800"
+                      >
+                        {name}
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
