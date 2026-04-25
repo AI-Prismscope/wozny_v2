@@ -1,14 +1,27 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  /* config options here */
-  output: 'export',
+  output: "export",
   compiler: {
-    removeConsole: process.env.NODE_ENV === "production" ? { exclude: ['error'] } : false,
+    removeConsole:
+      process.env.NODE_ENV === "production" ? { exclude: ["error"] } : false,
   },
-  // Required for WebLLM/WebGPU to load local WASM/Weights generally need loose checks or specific headers
-  // However, headers are usually "serve" time, not build time.
-  // We keep it simple for now.
+  webpack(config) {
+    // Allow webpack to process .mjs files from node_modules (e.g. wa-sqlite).
+    // Without this, webpack may reject ESM-only packages that ship .mjs dist files.
+    config.module.rules.push({
+      test: /\.mjs$/,
+      include: /node_modules/,
+      type: "javascript/auto",
+    });
+
+    // wa-sqlite.wasm is NOT bundled by webpack — it is served as a static
+    // asset from public/wa-sqlite.wasm and fetched at runtime by the db
+    // worker via the locateFile callback. No asyncWebAssembly experiment
+    // is needed because the WASM never passes through the webpack pipeline.
+
+    return config;
+  },
 };
 
 export default nextConfig;
