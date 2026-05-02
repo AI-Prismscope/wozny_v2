@@ -26,7 +26,13 @@ jobs:
       run: npm run build
       
     - name: Type Check
-      run: npx tsc --noEmit || true
+      run: npx tsc --noEmit
+      continue-on-error: true
+      
+    - name: Lint
+      run: npm run lint
+      continue-on-error: true
       
     - name: Unit Tests (Vitest)
-      run: npm test || true
+      run: npm test
+      continue-on-error: true
