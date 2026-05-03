@@ -35,7 +35,7 @@ async function initDB(): Promise<void> {
   // 1. Boot the Emscripten WASM module.
   //    locateFile redirects the runtime fetch to /wa-sqlite.wasm which is
   //    served from the Next.js public/ directory as a static asset.
-  const module = await (
+  const wasmModule = await (
     SQLiteFactory as unknown as (opts: {
       locateFile: (f: string) => string;
     }) => Promise<unknown>
@@ -45,7 +45,7 @@ async function initDB(): Promise<void> {
 
   // 2. Wrap the low-level module in the wa-sqlite JS API.
   sqlite3 = SQLite.Factory(
-    module as Parameters<typeof SQLite.Factory>[0],
+    wasmModule as Parameters<typeof SQLite.Factory>[0],
   ) as SQLiteAPI;
 
   // 3. Initialise the OPFS VFS.

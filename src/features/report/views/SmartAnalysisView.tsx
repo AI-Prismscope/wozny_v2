@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 import { useWoznyStore } from '@/lib/store/useWoznyStore';
 import { useAnalysisStore } from '@/lib/store/useAnalysisStore';
 import { useMLWorker } from '@/lib/ai/useEmbeddingsWorker';
-import { Sparkles, Play, Check, Loader2 } from 'lucide-react';
+import { Sparkles, Play, Loader2 } from 'lucide-react';
 
 export const SmartAnalysisView = () => {
     const columns = useWoznyStore((state) => state.columns);

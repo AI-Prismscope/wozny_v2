@@ -5,7 +5,7 @@
 // has finished initialising — initDB() is automatically awaited internally.
 // ---------------------------------------------------------------------------
 
-import type { DBRequest, DBResponse, DBStatement } from "./types";
+import type { DBRequest, DBResponse, DBStatement, Session } from "./types";
 
 // ---------------------------------------------------------------------------
 // Worker singleton
@@ -132,4 +132,71 @@ export function closeDB(): void {
   }
   initPromise = null;
   pending.clear();
+}
+
+/**
+ * Fetch all sessions from the database, ordered by most recently updated.
+ */
+export async function getAllSessions(): Promise<Session[]> {
+  await initDB();
+  const result = await query<Session>(
+    `SELECT id, file_name, created_at, updated_at, is_active FROM sessions
+     ORDER BY updated_at DESC`,
+  );
+  return result;
+}
+
+/**
+ * Sets a specific session as active and deactivates all others.
+ * @param sessionId The ID of the session to activate.
+ */
+export async function activateSession(sessionId: number): Promise<void> {
+  await initDB();
+  await execBatch([
+    {
+      sql: `UPDATE sessions SET is_active = 0, updated_at = datetime('now') WHERE is_active = 1`,
+    },
+    {
+      sql: `UPDATE sessions SET is_active = 1, updated_at = datetime('now') WHERE id = ?`,
+      bind: [sessionId],
+    },
+  ]);
+}
+
+/**
+ * Deletes a session and all its associated data.
+ * Due to ON DELETE CASCADE, all linked rows in other tables will also be deleted.
+ * @param sessionId The ID of the session to delete.
+ */
+export async function deleteSession(sessionId: number): Promise<void> {
+  await initDB();
+  await exec(`DELETE FROM sessions WHERE id = ?`, [sessionId]);
+}
+
+/**
+ * Get the most recent active session.
+ * @returns The active session or null if none exists.
+ */
+export async function getActiveSession(): Promise<Session | null> {
+  await initDB();
+  const sessions = await query<Session>(
+    `SELECT id, file_name, created_at, updated_at, is_active FROM sessions
+     WHERE is_active = 1
+     ORDER BY id DESC LIMIT 1`,
+  );
+  return sessions.length > 0 ? sessions[0] : null;
+}
+
+/**
+ * Get a specific session by ID.
+ * @param sessionId The ID of the session to fetch.
+ * @returns The session or null if not found.
+ */
+export async function getSessionById(sessionId: number): Promise<Session | null> {
+  await initDB();
+  const sessions = await query<Session>(
+    `SELECT id, file_name, created_at, updated_at, is_active FROM sessions WHERE id = ?`,
+    [sessionId],
+  );
+  return sessions.length > 0 ? sessions[0] : null;
 }

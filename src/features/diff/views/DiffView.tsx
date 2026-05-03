@@ -5,7 +5,6 @@ import { useWoznyStore } from '@/lib/store/useWoznyStore';
 import { useAnalysisStore } from '@/lib/store/useAnalysisStore';
 import { DataGrid } from '@/shared/DataGrid';
 import { Download, ArrowRight } from 'lucide-react';
-import Papa from 'papaparse';
 import { EmptyState } from '@/shared/EmptyState';
 import { downloadCleanCsv } from '@/lib/export-utils';
 
@@ -14,7 +13,6 @@ export const DiffView = () => {
     const rows = useWoznyStore((state) => state.rows);
     const columns = useWoznyStore((state) => state.columns);
     const fileName = useWoznyStore((state) => state.fileName);
-    const setActiveTab = useWoznyStore((state) => state.setActiveTab);
 
     // Analysis Store (for ignored columns)
     const ignoredColumns = useAnalysisStore((state) => state.ignoredColumns);
@@ -27,10 +25,6 @@ export const DiffView = () => {
         if (showHiddenColumns) return columns;
         return columns.filter(c => !ignoredColumns.includes(c));
     }, [columns, ignoredColumns, showHiddenColumns]);
-
-    if (rows.length === 0) {
-        return <EmptyState description="Upload a CSV file to export results." />;
-    }
 
     const sourceRef = React.useRef<HTMLDivElement>(null);
     const cleanRef = React.useRef<HTMLDivElement>(null);
@@ -67,6 +61,10 @@ export const DiffView = () => {
             cleanCtx.removeEventListener('scroll', handleScroll);
         };
     }, [rows]); // Re-attach if data changes (e.g. upload new file)
+
+    if (rows.length === 0) {
+        return <EmptyState description="Upload a CSV file to export results." />;
+    }
 
     const handleExport = () => {
         downloadCleanCsv(rows, visibleColumns, fileName || 'clean_data');

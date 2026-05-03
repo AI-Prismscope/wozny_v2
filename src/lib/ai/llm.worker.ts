@@ -1,11 +1,7 @@
-import { WebWorkerMLCEngineHandler, MLCEngine, AppConfig, prebuiltAppConfig } from "@mlc-ai/web-llm";
+import { WebWorkerMLCEngineHandler } from "@mlc-ai/web-llm";
 
 // --- INLINED CONFIG ---
-const SELECTED_MODEL_ID = "Llama-3.2-3B-Instruct-q4f32_1-MLC";
-const appConfig: AppConfig = {
-    useIndexedDBCache: true,
-    ...prebuiltAppConfig
-};
+// Model configuration is handled by WebWorkerMLCEngineHandler
 
 // --- INLINED PROMPTS ---
 const SYSTEM_PROMPTS = {

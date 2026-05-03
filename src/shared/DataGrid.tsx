@@ -31,6 +31,9 @@ export const DataGrid = React.forwardRef<HTMLDivElement, DataGridProps>(({
     const defaultRef = useRef<HTMLDivElement>(null);
     const parentRef = (ref as React.RefObject<HTMLDivElement>) || defaultRef;
 
+    // Note: TanStack Virtual's useVirtualizer returns functions that cannot be safely memoized
+    // This is a known limitation of the library and does not affect functionality
+    // eslint-disable-next-line react-hooks/incompatible-library
     const rowVirtualizer = useVirtualizer({
         count: data.length,
         getScrollElement: () => parentRef.current,

@@ -37,14 +37,16 @@ export const useMLWorker = () => {
         // This listener handles generic "error" or "ready" states that might affect everyone
         // NOTE: Request-specific progress is better handled in the promise, to avoid noise
         const globalHandler = (event: MessageEvent<MLResponse>) => {
-            const { status, error, data } = event.data;
+            const { status, error } = event.data;
             if (status === 'error' && !event.data.requestId) {
                 // Global worker error (not specific to a request)
                 setError(error || 'Unknown global worker error');
                 setStatus('error');
             }
             // Listen for device info
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             if (status === 'ready' && (event.data as any).device) {
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 setDevice((event.data as any).device);
             }
         };
@@ -103,7 +105,12 @@ export const useMLWorker = () => {
 
                 if (status === 'complete' && task === 'feature-extraction') {
                     globalWorker?.removeEventListener('message', handler);
-                    resolve(data);
+                    // Type guard: ensure data is Float32Array[]
+                    if (Array.isArray(data) && (data.length === 0 || data[0] instanceof Float32Array)) {
+                        resolve(data as Float32Array[]);
+                    } else {
+                        reject('Invalid data type received from worker');
+                    }
                     setStatus('ready');
                 } else if (status === 'error') {
                     globalWorker?.removeEventListener('message', handler);
@@ -144,7 +151,12 @@ export const useMLWorker = () => {
 
                 if (status === 'complete' && task === 'cluster-texts') {
                     globalWorker?.removeEventListener('message', handler);
-                    resolve(data);
+                    // Type guard: ensure data is Int32Array
+                    if (data instanceof Int32Array) {
+                        resolve(data);
+                    } else {
+                        reject('Invalid data type received from worker');
+                    }
                     setStatus('ready');
                 } else if (status === 'error') {
                     globalWorker?.removeEventListener('message', handler);

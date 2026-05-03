@@ -88,7 +88,7 @@ export const StatusView = () => {
       checkModelCache();
     }, 5000); // Poll every 5s
     return () => clearInterval(interval);
-  }, []);
+  }, [checkStorage]);
 
   const runSmokeTest = async () => {
     setSmokeStatus("loading");
@@ -180,7 +180,7 @@ export const StatusView = () => {
 
   useEffect(() => {
     runSmokeTest();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, []);
 
   const formatBytes = (bytes: number) => {
@@ -223,7 +223,6 @@ export const StatusView = () => {
     setClearing("model");
     try {
       const keys = await caches.keys();
-      let cleared = false;
       for (const key of keys) {
         if (
           key.includes("transformer") ||
@@ -231,7 +230,6 @@ export const StatusView = () => {
           key.includes("mlc")
         ) {
           await caches.delete(key);
-          cleared = true;
         }
       }
 
@@ -245,18 +243,35 @@ export const StatusView = () => {
   };
 
   const clearAppCache = async () => {
-    // Removed native confirm
     setClearing("app");
     try {
+      // 1. Close the db worker so it releases its OPFS file handles before
+      //    we attempt to delete the directory they're holding.
+      const { closeDB } = await import("@/lib/db/db");
+      closeDB();
+
+      // 2. Give the worker a moment to fully terminate.
+      await new Promise<void>((resolve) => setTimeout(resolve, 250));
+
+      // 3. Delete only the Wozny OPFS directory — leaves model caches
+      //    (WebLLM IndexedDB + Transformers.js Cache API) completely intact.
+      try {
+        const root = await navigator.storage.getDirectory();
+        await root.removeEntry("wozny-db", { recursive: true });
+      } catch (e: unknown) {
+        const err = e as DOMException;
+        // NotFoundError just means the directory was never created — fine.
+        if (err?.name !== "NotFoundError") throw e;
+      }
+
+      // 4. Clear web storage (no Wozny data lives here, but clear for hygiene).
       localStorage.clear();
       sessionStorage.clear();
-      const dbs = await window.indexedDB.databases();
-      dbs.forEach((db) => {
-        if (db.name) window.indexedDB.deleteDatabase(db.name);
-      });
+
+      // 5. Reload into a clean state.
       window.location.reload();
     } catch (e) {
-      alert("Failed to clear data: " + e);
+      alert("Failed to reset app data: " + e);
       setClearing(null);
     }
   };
@@ -278,7 +293,7 @@ export const StatusView = () => {
         onClose={closeDialog}
         onConfirm={proceedWithAction}
         title="Factory Reset Application?"
-        description="This will wipe all local data including imported files, settings, and logs. This action cannot be undone."
+        description="This permanently deletes your imported CSVs, cleaning history, and all session data from this device. AI model caches (Llama, Embeddings) are NOT affected — use 'Clear Model Caches' above to remove those separately. This action cannot be undone."
         confirmLabel="Factory Reset"
         variant="danger"
       />

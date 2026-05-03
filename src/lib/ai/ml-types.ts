@@ -27,7 +27,8 @@ export interface MLResponse {
     requestId?: string; // Echoed back to listener
     status: 'ready' | 'working' | 'complete' | 'error';
     task?: MLTaskType; // Now includes sub-tasks like 'loading-model'
-    data?: any; // The result (e.g., cluster IDs or embeddings)
+    data?: Float32Array[] | Int32Array | string; // Embeddings, cluster IDs, or device info
     error?: string;
     progress?: number; // 0 to 100
+    device?: 'webgpu' | 'wasm'; // Device used for model execution
 }

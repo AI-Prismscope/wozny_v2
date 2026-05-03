@@ -44,7 +44,7 @@ export function kMeans(vectors: Float32Array[], k: number, maxIterations: number
         }
     }
 
-    let assignments = new Int32Array(vectors.length);
+    const assignments = new Int32Array(vectors.length);
     let iterations = 0;
     let moved = true;
 

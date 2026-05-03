@@ -3,7 +3,7 @@
 import React, { useCallback, useState } from 'react';
 import { useWoznyStore } from '@/lib/store/useWoznyStore';
 import { parseCsvFile } from '../utils/parser';
-import { UploadCloud, FileSpreadsheet, Loader2 } from 'lucide-react';
+import { UploadCloud, Loader2 } from 'lucide-react';
 import clsx from 'clsx';
 
 export const UploadView = () => {

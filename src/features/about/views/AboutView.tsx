@@ -1,7 +1,21 @@
 
 import React from 'react';
 import { useWoznyStore } from '@/lib/store/useWoznyStore';
-import { ShieldCheck, Cpu, MessageSquare, Wrench, FileInput, FileOutput, Search, Activity, HelpCircle, Wand2 } from 'lucide-react';
+import { ShieldCheck, Cpu, MessageSquare, Wrench, FileInput, FileOutput, Search, Activity, Wand2, LucideIcon } from 'lucide-react';
+
+interface FeatureCardProps {
+    icon: LucideIcon;
+    color: string;
+    title: string;
+    description: string;
+}
+
+interface StepProps {
+    icon: LucideIcon;
+    step: string;
+    title: string;
+    desc: string;
+}
 
 export const AboutView = () => {
     return (
@@ -115,7 +129,7 @@ export const AboutView = () => {
     );
 };
 
-const FeatureCard = ({ icon: Icon, color, title, description }: any) => (
+const FeatureCard = ({ icon: Icon, color, title, description }: FeatureCardProps) => (
     <div className="bg-white dark:bg-neutral-900 border border-neutral-200 dark:border-neutral-800 p-6 rounded-xl hover:shadow-md transition-shadow">
         <div className={`w-12 h-12 rounded-lg bg-neutral-50 dark:bg-neutral-800 flex items-center justify-center mb-4 ${color}`}>
             <Icon className="w-6 h-6" />
@@ -127,7 +141,7 @@ const FeatureCard = ({ icon: Icon, color, title, description }: any) => (
     </div>
 );
 
-const Step = ({ icon: Icon, step, title, desc }: any) => (
+const Step = ({ icon: Icon, step, title, desc }: StepProps) => (
     <div className="flex flex-col items-center text-center bg-white dark:bg-black p-4 rounded-xl min-w-[160px]">
         <div className="w-14 h-14 rounded-full bg-neutral-900 dark:bg-white text-white dark:text-black flex items-center justify-center mb-4 shadow-lg">
             <Icon className="w-6 h-6" />

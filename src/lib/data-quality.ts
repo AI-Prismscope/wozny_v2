@@ -12,11 +12,8 @@ import {
 
 // --- CONSTANTS & REGEX ---
 const ISO_DATE_REGEX = /^\d{4}-\d{2}-\d{2}$/;
-const NON_ISO_DATE_REGEX =
-  /^(?:\d{1,2}[-/]\d{1,2}[-/]\d{2,4})|(?:\b(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]* \d{1,2}(?:st|nd|rd|th)?,? \d{4})$/i;
 const CURRENCY_SYMBOL_REGEX = /[$€£¥₿]/;
 const URL_REGEX = /^https?:\/\/[^\s/$.?#].[^\s]*$/i;
-const BROKEN_URL_REGEX = /^(www\.|[a-z0-9](d+[a-z0-9])+\.[a-z]{2,})/i;
 
 // --- UTILITIES ---
 

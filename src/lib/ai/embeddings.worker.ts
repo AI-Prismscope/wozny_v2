@@ -5,7 +5,9 @@ import { kMeans } from './kmeans';
 env.allowLocalModels = false;
 env.useBrowserCache = true;
 
-let extractor: any = null;
+// Note: Using 'unknown' because the Pipeline type from @huggingface/transformers
+// produces a union type that is too complex to represent in TypeScript
+let extractor: unknown = null;
 const DEFAULT_EMBEDDING_MODEL = 'Xenova/all-MiniLM-L6-v2';
 
 self.onmessage = async (event: MessageEvent<MLRequest>) => {
@@ -37,8 +39,9 @@ self.onmessage = async (event: MessageEvent<MLRequest>) => {
             default:
                 throw new Error(`Unknown task type: ${type}`);
         }
-    } catch (error: any) {
-        self.postMessage({ requestId, status: 'error', error: error.message } as MLResponse);
+    } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : String(error);
+        self.postMessage({ requestId, status: 'error', error: errorMessage } as MLResponse);
     }
 };
 
@@ -50,14 +53,17 @@ async function getExtractor(requestId: string) {
             extractor = await pipeline('feature-extraction', DEFAULT_EMBEDDING_MODEL, {
                 quantized: true,
                 device: 'webgpu',
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 progress_callback: (p: any) => {
                     if (p.status === 'progress') {
                         self.postMessage({ requestId, status: 'working', progress: p.progress, task: 'loading-model' } as MLResponse);
                     }
                 }
-            } as any);
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            } as any); // Complex union type from @huggingface/transformers
             // Verify if it actually used WebGPU (some versions might silently fallback, but we assume success if no throw)
             // In a real scenario we might check extractor.model.device
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             self.postMessage({ requestId, status: 'ready', device: 'webgpu' } as any);
 
         } catch (e) {
@@ -67,14 +73,18 @@ async function getExtractor(requestId: string) {
                 extractor = await pipeline('feature-extraction', DEFAULT_EMBEDDING_MODEL, {
                     quantized: true,
                     device: 'wasm',
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
                     progress_callback: (p: any) => {
                         if (p.status === 'progress') self.postMessage({ requestId, status: 'working', progress: p.progress, task: 'loading-model' } as MLResponse);
                     }
-                } as any);
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                } as any); // Complex union type from @huggingface/transformers
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 self.postMessage({ requestId, status: 'ready', device: 'wasm' } as any);
-            } catch (e2: any) {
+            } catch (e2) {
+                const errorMessage = e2 instanceof Error ? e2.message : String(e2);
                 // Fatal Error
-                self.postMessage({ requestId, status: 'error', error: "Model initialization failed: " + e2.message } as MLResponse);
+                self.postMessage({ requestId, status: 'error', error: "Model initialization failed: " + errorMessage } as MLResponse);
                 throw e2;
             }
         }
@@ -83,7 +93,8 @@ async function getExtractor(requestId: string) {
 }
 
 async function computeEmbeddings(texts: string[], requestId: string): Promise<Float32Array[]> {
-    const pipe = await getExtractor(requestId);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const pipe = await getExtractor(requestId) as any; // Type assertion needed for complex @huggingface/transformers types
     const embeddings: (Float32Array | null)[] = [];
     const total = texts.length;
 
@@ -122,10 +133,10 @@ async function handleFeatureExtraction(texts: string[], requestId: string) {
         status: 'complete',
         task: 'feature-extraction',
         data: embeddings
-    } as MLResponse, buffers as any);
+    } as MLResponse, { transfer: buffers as Transferable[] });
 }
 
-async function handleClusterTexts(texts: string[], options: any, requestId: string) {
+async function handleClusterTexts(texts: string[], options: MLRequest['options'], requestId: string) {
     // Pass requestId to computeEmbeddings so progress maps correctly
     const embeddings = await computeEmbeddings(texts, requestId);
 
@@ -154,5 +165,5 @@ async function handleClusterTexts(texts: string[], options: any, requestId: stri
         status: 'complete',
         task: 'cluster-texts',
         data: result
-    } as MLResponse, [result.buffer] as any);
+    } as MLResponse, { transfer: [result.buffer] as Transferable[] });
 }

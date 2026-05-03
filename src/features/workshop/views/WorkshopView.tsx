@@ -4,10 +4,20 @@ import React, { useState, useMemo } from 'react';
 import { useWoznyStore, RowData } from '@/lib/store/useWoznyStore';
 import { useAnalysisStore } from '@/lib/store/useAnalysisStore';
 import { DataGrid } from '@/shared/DataGrid';
-import { FileText, AlertTriangle, Ban, Layers, Loader2, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
+import { FileText, AlertTriangle, Ban, Layers, Loader2, PanelLeftClose, PanelLeftOpen, LucideIcon } from 'lucide-react';
 import clsx from 'clsx';
 
 type FilterType = 'ALL' | 'MISSING' | 'FORMAT' | 'DUPLICATE' | 'USER_SELECTION';
+
+interface SidebarItemProps {
+    label: string;
+    count: number;
+    icon: LucideIcon;
+    isActive: boolean;
+    onClick: () => void;
+    color: string;
+    collapsed: boolean;
+}
 
 export const WorkshopView = () => {
     const rows = useWoznyStore((state) => state.rows);
@@ -16,7 +26,6 @@ export const WorkshopView = () => {
     const splittableColumns = useWoznyStore((state) => state.splittableColumns);
     const sortConfig = useWoznyStore((state) => state.sortConfig);
     const toggleSort = useWoznyStore((state) => state.toggleSort);
-    const setActiveTab = useWoznyStore((state) => state.setActiveTab);
     const updateCell = useWoznyStore((state) => state.updateCell);
     const removeRow = useWoznyStore((state) => state.removeRow);
     const resolveDuplicates = useWoznyStore((state) => state.resolveDuplicates);
@@ -91,7 +100,7 @@ export const WorkshopView = () => {
         });
 
         // Step C: No AI Filter anymore
-        let finalIndices = candidateIndices;
+        const finalIndices = candidateIndices;
 
         // Step D: Construct Output
         const finalRows: RowData[] = [];
@@ -128,7 +137,7 @@ export const WorkshopView = () => {
         });
 
         return { filteredRows: finalRows, issueMap: map, rowStateMap: stateMap, globalIndexMap: indexMap };
-    }, [rows, visibleIssues, filter, visibleColumns]);
+    }, [rows, visibleIssues, filter, visibleColumns, userSelection]);
 
     // 3. Editing State
     const [editingCell, setEditingCell] = useState<{ globalRowIndex: number, colId: string, currentValue: string } | null>(null);
@@ -408,7 +417,7 @@ export const WorkshopView = () => {
                     <div className="bg-white dark:bg-neutral-900 rounded-xl shadow-2xl p-6 w-full max-w-sm border border-neutral-200 dark:border-neutral-800">
                         <h3 className="text-lg font-bold mb-2 text-neutral-900 dark:text-white">Smart Split Column?</h3>
                         <div className="text-sm text-neutral-600 dark:text-neutral-400 mb-6">
-                            This will split <strong>"{splitConfirmation}"</strong> into new columns:
+                            This will split <strong>{`"`}{splitConfirmation}{`"`}</strong> into new columns:
                             <br />
                             <div className="flex gap-2 mt-2 flex-wrap">
                                 {(splittableColumns[splitConfirmation] === 'ADDRESS'
@@ -479,7 +488,7 @@ export const WorkshopView = () => {
     );
 };
 
-const SidebarItem = ({ label, count, icon: Icon, isActive, onClick, color, collapsed }: any) => (
+const SidebarItem = ({ label, count, icon: Icon, isActive, onClick, color, collapsed }: SidebarItemProps) => (
     <button
         onClick={onClick}
         className={clsx(

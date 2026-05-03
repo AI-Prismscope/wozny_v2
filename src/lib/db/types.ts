@@ -36,3 +36,12 @@ export interface DBResponse {
   rows?: Record<string, unknown>[];
   error?: string;
 }
+
+/** Represents a row in the `sessions` table. */
+export interface Session {
+  id: number;
+  file_name: string;
+  created_at: string;
+  updated_at: string;
+  is_active: 0 | 1;
+}

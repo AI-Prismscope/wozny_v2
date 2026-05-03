@@ -58,8 +58,9 @@ export const useWoznyLLM = create<LLMState>((set, get) => ({
             );
 
             set({ engine, isReady: true, isLoading: false, progress: "Ready" });
-        } catch (err: any) {
-            set({ error: err.message, isLoading: false });
+        } catch (err) {
+            const error = err instanceof Error ? err : new Error(String(err));
+            set({ error: error.message, isLoading: false });
         }
     },
 
@@ -186,7 +187,7 @@ export const useWoznyLLM = create<LLMState>((set, get) => ({
             if (jsonStr.startsWith('```')) jsonStr = jsonStr.replace('```', '').replace('```', '');
 
             return JSON.parse(jsonStr);
-        } catch (e) {
+        } catch (_e) { // eslint-disable-line @typescript-eslint/no-unused-vars
             console.error("Failed to parse LLM JSON", response);
             return {};
         }
@@ -231,7 +232,9 @@ export const useWoznyLLM = create<LLMState>((set, get) => ({
             if (jsonStr.startsWith('```json')) jsonStr = jsonStr.replace('```json', '').replace('```', '');
             if (jsonStr.startsWith('```')) jsonStr = jsonStr.replace('```', '').replace('```', '');
             return JSON.parse(jsonStr);
-        } catch (e) { return {}; }
+        } catch (_e) { // eslint-disable-line @typescript-eslint/no-unused-vars
+            return {};
+        }
     },
 
     normalizeCurrency: async (values) => {
@@ -256,7 +259,9 @@ export const useWoznyLLM = create<LLMState>((set, get) => ({
             if (jsonStr.startsWith('```json')) jsonStr = jsonStr.replace('```json', '').replace('```', '');
             if (jsonStr.startsWith('```')) jsonStr = jsonStr.replace('```', '').replace('```', '');
             return JSON.parse(jsonStr);
-        } catch (e) { return {}; }
+        } catch (_e) { // eslint-disable-line @typescript-eslint/no-unused-vars
+            return {};
+        }
     },
 
     standardizeStateCodes: async (values) => {
@@ -280,6 +285,8 @@ export const useWoznyLLM = create<LLMState>((set, get) => ({
             if (jsonStr.startsWith('```json')) jsonStr = jsonStr.replace('```json', '').replace('```', '');
             if (jsonStr.startsWith('```')) jsonStr = jsonStr.replace('```', '').replace('```', '');
             return JSON.parse(jsonStr);
-        } catch (e) { return {}; }
+        } catch (_e) { // eslint-disable-line @typescript-eslint/no-unused-vars
+            return {};
+        }
     }
 }));

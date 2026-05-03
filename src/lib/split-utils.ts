@@ -26,8 +26,6 @@ export const getSplittableType = (values: string[]): SplitType => {
     let addressCount = 0, nameCount = 0;
 
     sample.forEach(val => {
-        const lo = val.toLowerCase();
-
         // Address: Ends in Zip OR has Street Suffix
         if (/\b\d{5}(-\d{4})?\b$/.test(val) || /\b(St|Ave|Rd|Blvd|Ln|Dr|Way|Ct|Pl|Street|Avenue|Road)\b/i.test(val)) {
             addressCount++;

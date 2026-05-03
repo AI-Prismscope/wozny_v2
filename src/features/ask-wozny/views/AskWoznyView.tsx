@@ -5,7 +5,7 @@ import { useWoznyStore, RowData } from "@/lib/store/useWoznyStore";
 import { useAnalysisStore } from "@/lib/store/useAnalysisStore";
 import { DataGrid } from "@/shared/DataGrid";
 import { EmptyState } from "@/shared/EmptyState";
-import { Wand2, Loader2, X, Download, ArrowLeft } from "lucide-react";
+import { Wand2, Loader2, X, Download } from "lucide-react";
 import { useWoznyLLM } from "@/lib/ai/useWoznyLLM";
 import clsx from "clsx";
 import { downloadCleanCsv } from "@/lib/export-utils";
@@ -13,7 +13,6 @@ import { downloadCleanCsv } from "@/lib/export-utils";
 export const AskWoznyView = () => {
   const rows = useWoznyStore((state) => state.rows);
   const columns = useWoznyStore((state) => state.columns);
-  const fileName = useWoznyStore((state) => state.fileName);
   const setActiveTab = useWoznyStore((state) => state.setActiveTab);
   const setUserSelection = useWoznyStore((state) => state.setUserSelection);
   const sortConfig = useWoznyStore((state) => state.sortConfig);
@@ -40,46 +39,6 @@ export const AskWoznyView = () => {
   const [aiQuery, setAiQuery] = useState("");
   const [aiFilterCode, setAiFilterCode] = useState<string | null>(null);
   const [isThinking, setIsThinking] = useState(false);
-
-  if (rows.length === 0) {
-    return <EmptyState description="Upload a CSV file first." />;
-  }
-
-  // Handle AI Filter
-  const handleAskWozny = async () => {
-    if (!aiQuery.trim()) return;
-
-    if (!isReady) {
-      await initialize();
-    }
-
-    setIsThinking(true);
-    setIsThinking(true);
-    try {
-      // Only feed visible columns to AI? Or give it all but tell it which are ignored?
-      // For now, let's just give it visible columns to avoid confusion
-      const code = await generateFilterCode(visibleColumns, aiQuery, rows);
-      console.log("AI Code:", code);
-      setAiFilterCode(code);
-    } catch (e) {
-      console.error("AI Error:", e);
-    } finally {
-      setIsThinking(false);
-    }
-  };
-
-  const clearAiFilter = () => {
-    setAiQuery("");
-    setAiFilterCode(null);
-  };
-
-  const handleSendToWorkshop = () => {
-    // Map current filtered row objects back to their global index
-    // Note: rows[i] === row by reference
-    const indices = filteredRows.map((row) => rows.indexOf(row));
-    setUserSelection(indices);
-    setActiveTab("workshop");
-  };
 
   // Filter Logic
   const filteredRows = useMemo(() => {
@@ -152,7 +111,7 @@ export const AskWoznyView = () => {
           // Wrap row in proxy to handle casing issues like "Account manager" vs "Account Manager"
           const proxyRow = createFuzzyRowProxy(row);
           return expressionFn(proxyRow);
-        } catch (e) {
+        } catch (_e) { // eslint-disable-line @typescript-eslint/no-unused-vars
           return false;
         }
       });
@@ -163,6 +122,46 @@ export const AskWoznyView = () => {
       return rows;
     }
   }, [rows, aiFilterCode]);
+
+  if (rows.length === 0) {
+    return <EmptyState description="Upload a CSV file first." />;
+  }
+
+  // Handle AI Filter
+  const handleAskWozny = async () => {
+    if (!aiQuery.trim()) return;
+
+    if (!isReady) {
+      await initialize();
+    }
+
+    setIsThinking(true);
+    setIsThinking(true);
+    try {
+      // Only feed visible columns to AI? Or give it all but tell it which are ignored?
+      // For now, let's just give it visible columns to avoid confusion
+      const code = await generateFilterCode(visibleColumns, aiQuery, rows);
+      console.log("AI Code:", code);
+      setAiFilterCode(code);
+    } catch (e) {
+      console.error("AI Error:", e);
+    } finally {
+      setIsThinking(false);
+    }
+  };
+
+  const clearAiFilter = () => {
+    setAiQuery("");
+    setAiFilterCode(null);
+  };
+
+  const handleSendToWorkshop = () => {
+    // Map current filtered row objects back to their global index
+    // Note: rows[i] === row by reference
+    const indices = filteredRows.map((row) => rows.indexOf(row));
+    setUserSelection(indices);
+    setActiveTab("workshop");
+  };
 
   return (
     <div className="flex flex-col h-full animate-in fade-in duration-300 bg-neutral-50 dark:bg-neutral-900">
@@ -265,7 +264,7 @@ export const AskWoznyView = () => {
               No results found
             </h3>
             <p className="text-sm max-w-xs text-center mt-2">
-              We couldn't find any rows matching "{aiQuery}". Try rephrasing
+              We couldn{`'`}t find any rows matching {`"`}{aiQuery}{`"`}. Try rephrasing
               your search.
             </p>
             <button

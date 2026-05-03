@@ -1,6 +1,6 @@
 import { create } from "zustand";
 import { immer } from "zustand/middleware/immer";
-import { useWoznyStore, RowData } from "./useWoznyStore";
+import { useWoznyStore } from "./useWoznyStore";
 import { runDeterministicAnalysis, autoFixRow } from "../data-quality";
 
 export interface AnalysisIssue {

@@ -2,7 +2,7 @@
 
 import React, { useState } from "react";
 import { useWoznyStore } from "@/lib/store/useWoznyStore";
-import { useAnalysisStore } from "@/lib/store/useAnalysisStore";
+import { useAnalysisStore, type AnalysisIssue } from "@/lib/store/useAnalysisStore";
 import {
   CheckCircle2,
   AlertTriangle,
@@ -10,10 +10,20 @@ import {
   Ban,
   Sparkles,
   Layout,
+  LucideIcon,
 } from "lucide-react";
 import { SmartAnalysisView } from "./SmartAnalysisView";
 
 type ViewMode = "missing" | "formatting" | "duplicates" | "smart";
+
+interface SidebarItemProps {
+  active: boolean;
+  onClick: () => void;
+  icon: LucideIcon;
+  label: string;
+  count?: number;
+  color: string;
+}
 
 export const ReportView = () => {
   const fileName = useWoznyStore((state) => state.fileName);
@@ -81,7 +91,7 @@ export const ReportView = () => {
     let count = 0;
     let columns: string[] = [];
     let color = "";
-    let list: any[] = [];
+    let list: AnalysisIssue[] = [];
 
     if (activeView === "missing") {
       title = "Missing Values";
@@ -267,7 +277,7 @@ const SidebarItem = ({
   label,
   count,
   color,
-}: any) => (
+}: SidebarItemProps) => (
   <button
     onClick={onClick}
     className={`w-full flex items-center justify-between p-3 rounded-lg transition-all ${

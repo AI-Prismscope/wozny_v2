@@ -18,7 +18,7 @@
 
 import { useWoznyStore, RowData, WoznyState } from "../store/useWoznyStore";
 import { useAnalysisStore } from "../store/useAnalysisStore";
-import { exec, execBatch, query, initDB } from "./db";
+import { exec, execBatch, query, initDB, getAllSessions, getActiveSession, getSessionById, activateSession } from "./db";
 import type { DBStatement } from "./types";
 
 // ---------------------------------------------------------------------------
@@ -56,7 +56,19 @@ let currentSessionId: number | null = null;
  */
 let isRehydrating = false;
 
-export function getCurrentSessionId(): number | null {
+/**
+ * Internal helper to get the current session ID.
+ * Used internally by persistence logic to track which session is active.
+ * 
+ * Note: This is intentionally not exported. UI components should query
+ * session information directly from the database using the db.ts API
+ * (e.g., getActiveSession()) rather than relying on this internal state.
+ * 
+ * @internal
+ * @returns The current session ID, or null if no session is active
+ */
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+function getCurrentSessionId(): number | null {
   return currentSessionId;
 }
 
@@ -146,26 +158,43 @@ async function writeCleanRows(
 async function handleNewFile(state: WoznyState): Promise<void> {
   await initDB();
 
-  // Deactivate any previous session before creating the new one.
+  const existingSessions = await getAllSessions();
+
+  // Note: Session selection UI not yet implemented. See TODO.md for details.
+  // Currently always creates a new session regardless of existing sessions.
+
+  if (existingSessions.length > 0) {
+    console.log(
+      "[persistence] Existing sessions found. Creating new session (UI prompt not yet implemented).",
+    );
+  } else {
+    console.log(
+      "[persistence] No existing sessions found. Creating new session.",
+    );
+  }
+
+  // Deactivate any previously active session before creating the new one.
   await deactivateAllSessions();
 
   const id = await createSession(state.fileName ?? "Untitled");
   currentSessionId = id;
 
-  // Reset in-memory ignored columns so the previous session's ignored
-  // columns don't bleed into the new session's UI state.
+  // Reset in-memory ignored columns.
   if (useAnalysisStore.getState().ignoredColumns.length > 0) {
     useAnalysisStore.getState().resetIgnoredColumns([]);
   }
 
-  // Write metadata, raw rows, and clean rows concurrently where possible.
-  // Raw rows are the original upload — written once and never mutated.
-  // Clean rows start as a copy of raw rows on first load.
+  // Write metadata, raw rows, and clean rows.
   await upsertDatasetMeta(id, state);
   await writeRawRows(id, state.rawRows);
   await writeCleanRows(id, state.rows);
 
-  console.log("[persistence] Session created:", id, "file:", state.fileName);
+  console.log(
+    "[persistence] New session created:",
+    id,
+    "file:",
+    state.fileName,
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -234,25 +263,39 @@ async function handleStateChange(
 // handleStateChange, so the Zustand notify loop is never blocked.
 // ---------------------------------------------------------------------------
 
-useWoznyStore.subscribe((state, prevState) => {
-  if (isRehydrating) return;
-  handleStateChange(state, prevState).catch((err) =>
-    console.error("[persistence] Subscriber error:", err),
-  );
-});
+/**
+ * Helper to wrap Zustand subscribers with rehydration guard.
+ * Prevents write-path subscribers from firing during rehydration.
+ */
+function createGuardedSubscriber<T>(
+  handler: (state: T, prevState: T) => void | Promise<void>
+): (state: T, prevState: T) => void {
+  return (state, prevState) => {
+    if (isRehydrating) return;
+    const result = handler(state, prevState);
+    if (result instanceof Promise) {
+      result.catch((err) => console.error("[persistence] Subscriber error:", err));
+    }
+  };
+}
+
+useWoznyStore.subscribe(
+  createGuardedSubscriber((state, prevState) => {
+    return handleStateChange(state, prevState);
+  })
+);
 
 // Subscribe to useAnalysisStore to persist ignoredColumns changes.
 // toggleIgnoreColumn lives in useAnalysisStore, so the useWoznyStore
 // subscriber above never sees those mutations.
-useAnalysisStore.subscribe((state, prevState) => {
-  if (isRehydrating) return;
-  if (state.ignoredColumns === prevState.ignoredColumns) return;
-  if (currentSessionId === null) return;
+useAnalysisStore.subscribe(
+  createGuardedSubscriber((state, prevState) => {
+    if (state.ignoredColumns === prevState.ignoredColumns) return;
+    if (currentSessionId === null) return;
 
-  writeIgnoredColumns(currentSessionId, state.ignoredColumns).catch((err) =>
-    console.error("[persistence] Ignored columns write failed:", err),
-  );
-});
+    return writeIgnoredColumns(currentSessionId, state.ignoredColumns);
+  })
+);
 
 // ---------------------------------------------------------------------------
 // Rehydration — read path (Phase 3b)
@@ -267,129 +310,164 @@ export async function rehydrateSession(): Promise<boolean> {
   await initDB();
 
   // 1. Find the most recent active session.
-  const sessions = await query<{ id: number; file_name: string }>(
-    `SELECT id, file_name FROM sessions
-     WHERE is_active = 1
-     ORDER BY id DESC LIMIT 1`,
-  );
+  const activeSession = await getActiveSession();
 
-  if (sessions.length === 0) {
+  if (!activeSession) {
     console.log("[persistence] No active session — starting fresh.");
     return false;
   }
 
-  const { id: sessionId, file_name: fileName } = sessions[0];
+  // 1.5. Fetch all sessions and return them to the caller to display in a list.
+  const allSessions = await getAllSessions();
 
-  // 2. Load dataset metadata.
-  const metaRows = await query<{
-    columns: string;
-    column_widths: string;
-    splittable_columns: string;
-    sort_config: string | null;
-    show_hidden_columns: number;
-  }>(
-    `SELECT columns, column_widths, splittable_columns,
-            sort_config, show_hidden_columns
-     FROM dataset_meta WHERE session_id = ?`,
-    [sessionId],
-  );
-
-  if (metaRows.length === 0) {
-    console.warn(
-      "[persistence] Session",
-      sessionId,
-      "has no metadata — skipping rehydration.",
-    );
+  // If there are no sessions at all, we still return false to indicate
+  // that no session was restored. If there are sessions, we return them
+  // so the UI can display them.
+  if (allSessions.length === 0) {
+    console.log("[persistence] No sessions found in the database.");
     return false;
-  }
-
-  const meta = metaRows[0];
-
-  // 3. Load raw rows (original upload, preserves rawRows state).
-  const rawRecords = await query<{ row_json: string }>(
-    `SELECT row_json FROM dataset_rows
-     WHERE session_id = ? AND row_type = 'raw'
-     ORDER BY row_index`,
-    [sessionId],
-  );
-
-  // 4. Load clean rows (current working copy).
-  const cleanRecords = await query<{ row_json: string }>(
-    `SELECT row_json FROM dataset_rows
-     WHERE session_id = ? AND row_type = 'clean'
-     ORDER BY row_index`,
-    [sessionId],
-  );
-
-  const rawRows = rawRecords.map(
-    (r) => JSON.parse(String(r.row_json)) as RowData,
-  );
-  const cleanRows = cleanRecords.map(
-    (r) => JSON.parse(String(r.row_json)) as RowData,
-  );
-
-  if (cleanRows.length === 0) {
-    console.warn(
-      "[persistence] Session",
-      sessionId,
-      "has no rows — skipping rehydration.",
-    );
-    return false;
-  }
-
-  // 5. Load ignored columns (useAnalysisStore state).
-  const ignoredColRecords = await query<{ column_name: string }>(
-    `SELECT column_name FROM ignored_columns WHERE session_id = ?`,
-    [sessionId],
-  );
-  const ignoredColumns = ignoredColRecords.map((r) => String(r.column_name));
-
-  // 6. Populate stores — suppress the write-path subscriber while doing so.
-  currentSessionId = sessionId;
-  isRehydrating = true;
-
-  try {
-    useWoznyStore.setState({
-      fileName,
-      rawRows,
-      rows: cleanRows,
-      columns: JSON.parse(String(meta.columns)) as string[],
-      columnWidths: JSON.parse(String(meta.column_widths)) as Record<
-        string,
-        number
-      >,
-      splittableColumns: JSON.parse(String(meta.splittable_columns)) as Record<
-        string,
-        "ADDRESS" | "NAME" | "NONE"
-      >,
-      sortConfig: meta.sort_config
-        ? (JSON.parse(String(meta.sort_config)) as WoznyState["sortConfig"])
-        : null,
-      showHiddenColumns: meta.show_hidden_columns === 1,
-      // Land on report so the user immediately sees their data quality summary.
-      activeTab: "report",
-    });
-
-    // Restore ignored columns via the store's own immer-wrapped action.
-    // Using external setState({ ignoredColumns }) with Zustand v5 + immer
-    // can silently lose the update; resetIgnoredColumns goes through the
-    // proper set() path and is guaranteed to commit.
-    if (ignoredColumns.length > 0) {
-      useAnalysisStore.getState().resetIgnoredColumns(ignoredColumns);
-    }
-  } finally {
-    isRehydrating = false;
   }
 
   console.log(
-    "[persistence] Rehydrated session",
-    sessionId,
-    "—",
-    fileName,
-    "—",
-    cleanRows.length,
-    "rows",
+    `[persistence] Found ${allSessions.length} existing sessions. Returning list to caller.`,
   );
+  // Note: Session list display not yet implemented. See TODO.md for details.
+  // Currently returns false, indicating no session was automatically restored.
+  return false;
+}
 
-  return true;
+/**
+ * Loads a specific session by its ID. This is called when the user selects
+ * a session from the list after no active session was found during initial rehydration.
+ * @param sessionId The ID of the session to load.
+ * @returns True if the session was loaded successfully, false otherwise.
+ */
+export async function loadSession(sessionId: number): Promise<boolean> {
+    await initDB();
+
+    // 1. Activate the session in the database.
+    try {
+      await activateSession(sessionId);
+    } catch (error) {
+      console.error("[persistence] Failed to activate session:", error);
+      return false;
+    }
+
+    // 2. Fetch session details (needed for fileName)
+    const session = await getSessionById(sessionId);
+
+    if (!session) {
+      console.error(
+        "[persistence] Session not found after activation:",
+        sessionId,
+      );
+      return false;
+    }
+    const { file_name: fileName } = session;
+
+    // 3. Load dataset metadata.
+    const metaRows = await query<{
+      columns: string;
+      column_widths: string;
+      splittable_columns: string;
+      sort_config: string | null;
+      show_hidden_columns: number;
+    }>(
+      `SELECT columns, column_widths, splittable_columns,
+            sort_config, show_hidden_columns
+       FROM dataset_meta WHERE session_id = ?`,
+      [sessionId],
+    );
+
+    if (metaRows.length === 0) {
+      console.warn(
+        "[persistence] Session",
+        sessionId,
+        "has no metadata — skipping load.",
+      );
+      return false;
+    }
+    const meta = metaRows[0];
+
+    // 4. Load raw rows.
+    const rawRecords = await query<{ row_json: string }>(
+      `SELECT row_json FROM dataset_rows
+     WHERE session_id = ? AND row_type = 'raw'
+     ORDER BY row_index`,
+      [sessionId],
+    );
+
+    // 5. Load clean rows.
+    const cleanRecords = await query<{ row_json: string }>(
+      `SELECT row_json FROM dataset_rows
+     WHERE session_id = ? AND row_type = 'clean'
+     ORDER BY row_index`,
+      [sessionId],
+    );
+
+    const rawRows = rawRecords.map(
+      (r) => JSON.parse(String(r.row_json)) as RowData,
+    );
+    const cleanRows = cleanRecords.map(
+      (r) => JSON.parse(String(r.row_json)) as RowData,
+    );
+
+    if (cleanRows.length === 0) {
+      console.warn(
+        "[persistence] Session",
+        sessionId,
+        "has no rows — skipping load.",
+      );
+      return false;
+    }
+
+    // 6. Load ignored columns.
+    const ignoredColRecords = await query<{ column_name: string }>(
+      `SELECT column_name FROM ignored_columns WHERE session_id = ?`,
+      [sessionId],
+    );
+    const ignoredColumns = ignoredColRecords.map((r) => String(r.column_name));
+
+    // 7. Populate stores.
+    currentSessionId = sessionId;
+    isRehydrating = true;
+
+    try {
+      useWoznyStore.setState({
+        fileName,
+        rawRows,
+        rows: cleanRows,
+        columns: JSON.parse(String(meta.columns)) as string[],
+        columnWidths: JSON.parse(String(meta.column_widths)) as Record<
+          string,
+          number
+        >,
+        splittableColumns: JSON.parse(
+          String(meta.splittable_columns),
+        ) as Record<string, "ADDRESS" | "NAME" | "NONE">,
+        sortConfig: meta.sort_config
+          ? (JSON.parse(String(meta.sort_config)) as WoznyState["sortConfig"])
+          : null,
+        showHiddenColumns: meta.show_hidden_columns === 1,
+        activeTab: "report", // Default to report view after loading
+      });
+
+      if (ignoredColumns.length > 0) {
+        useAnalysisStore.getState().resetIgnoredColumns(ignoredColumns);
+      }
+    } finally {
+      isRehydrating = false;
+    }
+
+    console.log(
+      "[persistence] Loaded session",
+      sessionId,
+      "—",
+      fileName,
+      "—",
+      cleanRows.length,
+      "rows",
+    );
+
+    return true;
 }

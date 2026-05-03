@@ -9,7 +9,7 @@ export const checkWebGPU = async (): Promise<boolean> => {
     try {
         const adapter = await navigator.gpu.requestAdapter();
         return !!adapter;
-    } catch (e) {
+    } catch (_e) { // eslint-disable-line @typescript-eslint/no-unused-vars
         return false;
     }
 };
